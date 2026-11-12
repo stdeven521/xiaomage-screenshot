@@ -34,6 +34,7 @@ fi
 for tool in git python3; do
     command -v "$tool" >/dev/null || snow_die "Missing $tool. Install the prerequisites listed in docs-macos-build.md."
 done
+python3 "$snow_repo_root/scripts/prepare-personal-macos-ocr.py"
 cmake_version="$(cmake --version | head -n 1)"
 if [[ ! "$cmake_version" =~ ^cmake[[:space:]]version[[:space:]]([0-9]+)\.([0-9]+) ]] ||
     (( BASH_REMATCH[1] < 4 || (BASH_REMATCH[1] == 4 && BASH_REMATCH[2] < 2) )); then

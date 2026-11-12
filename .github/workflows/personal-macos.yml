@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: personal-macos-${{ github.ref }}
+  group: personal-macos-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -104,6 +104,11 @@ jobs:
         with:
           path: .tools/vcpkg-binaries
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
+      - name: Verify OCR bootstrap ordering
+        run: |
+          python3 scripts/test-macos-build-support.py \
+            MacOSBuildScripts.test_bootstrap_prepares_ocr_before_installing_dependencies \
+            MacOSBuildScripts.test_bootstrap_stops_on_ocr_patch_conflict
       - name: Verify isolated native headers
         run: |
           dependency_include="$GITHUB_WORKSPACE/.tools/macos/installed/dynamic/${{ matrix.arch }}-osx-snow-shot/include"
@@ -119,7 +124,71 @@ jobs:
           for header in decode.h demux.h encode.h mux.h; do
             grep -F "$dependency_include/webp/$header" "$header_trace" >/dev/null
           done
+      - name: Identify Cargo cache toolchains
+        id: cargo-cache-key
+        env:
+          CACHE_ARCH: ${{ matrix.arch }}
+          CACHE_RUNNER: ${{ matrix.runner }}
+          CACHE_LOCKS: ${{ hashFiles('snow_rust_ffi/Cargo.lock', 'snow-crates/Cargo.lock', 'snow_draw_engine_qt/Cargo.lock', 'snow-image-rs/Cargo.lock', 'snow_shot/rust/snow-shot-mcp/Cargo.lock', 'snow-crates/crates/simd-paddle-ocr-rs/Cargo.lock') }}
+          CACHE_NATIVE_CONFIG: ${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**', 'cmake/RustStaticLibrary.cmake', 'cmake/SnowOcrToolchain.cmake', 'snow_shot/CMakeLists.txt', 'cmake/SnowDiagnostics.cmake') }}
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+
+          def output(*args):
+              return subprocess.check_output(args, text=True).strip()
+
+          pin = Path('snow-crates/crates/simd-paddle-ocr-rs/rust-toolchain.toml').read_text()
+          channel = re.search(r'^channel\s*=\s*"([^"]+)"', pin, re.MULTILINE)[1]
+          identity = {
+              'xcode': output('xcodebuild', '-version'),
+              'sdk': output('xcrun', '--sdk', 'macosx', '--show-sdk-build-version'),
+              'rust': output('rustc', '-vV'),
+              'ocr_channel': channel,
+              'ocr_rust': output('rustup', 'run', channel, 'rustc', '-vV'),
+              'workspace': os.environ['GITHUB_WORKSPACE'],
+              'deployment_target': os.environ['MACOSX_DEPLOYMENT_TARGET'],
+              'native_config': os.environ['CACHE_NATIVE_CONFIG'],
+          }
+          toolchains = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+          # Keep source/Metal fixes out of this prefix. Cargo rechecks their own
+          # fingerprints while unchanged third-party builds remain reusable.
+          prefix = (f"personal-cargo-build-v1-{os.environ['CACHE_ARCH']}-"
+                    f"{os.environ['CACHE_RUNNER']}-performance-release-fast-"
+                    f"{toolchains}-{os.environ['CACHE_LOCKS']}-")
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as result:
+              result.write(f'build-prefix={prefix}\n')
+          print(f'Cargo cache: {os.environ["CACHE_ARCH"]}, performance/release-fast, {channel}, {toolchains[:16]}')
+          PY
+      - name: Restore Cargo downloads
+        id: cargo-download-cache
+        uses: actions/cache/restore@v4
+        with:
+          # Never cache Cargo credentials, config, executables or unpacked sources.
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: personal-cargo-downloads-v1-${{ matrix.arch }}-${{ hashFiles('snow_rust_ffi/Cargo.lock', 'snow-crates/Cargo.lock', 'snow_draw_engine_qt/Cargo.lock', 'snow-image-rs/Cargo.lock', 'snow_shot/rust/snow-shot-mcp/Cargo.lock', 'snow-crates/crates/simd-paddle-ocr-rs/Cargo.lock') }}
+      - name: Restore Cargo build outputs
+        id: cargo-build-cache
+        uses: actions/cache/restore@v4
+        with:
+          # This contains the base and full target trees, not Qt/vcpkg/C++ outputs.
+          # Keep dSYMs paired with fresh fingerprints for symbol packaging.
+          path: build/snow-shot-macos-${{ matrix.arch }}-performance/cargo
+          key: ${{ steps.cargo-cache-key.outputs.build-prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ steps.cargo-cache-key.outputs.build-prefix }}
+      - name: Verify Metal build module
+        if: matrix.arch == 'arm64'
+        run: python3 scripts/check-personal-macos-metal.py
       - name: Build full personal edition and targeted tests
+        id: build-personal
         run: |
           bash scripts/build.sh snow-shot-macos-${{ matrix.arch }}-performance --parallel 2 \
             --target snow_shot \
@@ -137,6 +206,61 @@ jobs:
             -DCMAKE_OSX_SYSROOT=macosx \
             -DSNOW_RUST_RELEASE_PROFILE=release-fast \
             -DSNOW_MACOS_CODESIGN_IDENTITY=-
+      - name: Inspect completed Cargo cache content
+        id: cargo-cache-state
+        if: always() && (steps.build-personal.outcome == 'success' || steps.build-personal.outcome == 'failure')
+        env:
+          CACHE_ARCH: ${{ matrix.arch }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import shutil
+
+          workspace = Path.cwd().resolve()
+          expected = workspace / f'build/snow-shot-macos-{os.environ["CACHE_ARCH"]}-performance/cargo'
+          target = expected.resolve()
+          if target != expected or not target.is_relative_to(workspace / 'build'):
+              raise SystemExit('Unexpected Cargo cache directory')
+          compiled = False
+          total = 0
+          for root, directories, files in os.walk(target):
+              if 'incremental' in directories:
+                  incremental = Path(root) / 'incremental'
+                  if incremental.is_symlink() or not incremental.resolve().is_relative_to(target):
+                      raise SystemExit('Unexpected incremental cache directory')
+                  # Prune only generated compiler databases after Cargo exits.
+                  # Negated child globs cannot exclude tar's parent recursion.
+                  shutil.rmtree(incremental)
+                  directories.remove('incremental')
+              for name in files:
+                  path = Path(root) / name
+                  if path.is_file():
+                      size = path.stat().st_size
+                      total += size
+                      compiled |= size > 0 and path.suffix in ('.rlib', '.rmeta', '.a', '.dylib')
+          cargo_home = Path.home() / '.cargo'
+          downloads = any(path.is_file() for directory in ('registry/index', 'registry/cache', 'git/db')
+                          for path in (cargo_home / directory).rglob('*'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as result:
+              result.write(f'build={str(compiled).lower()}\ndownloads={str(downloads).lower()}\n')
+          print(f'Cargo outputs eligible for caching: {total / 1024**2:.1f} MiB; compiled artifacts: {compiled}')
+          PY
+      - name: Save Cargo downloads after build
+        if: always() && steps.cargo-cache-state.outputs.downloads == 'true' && steps.cargo-download-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ steps.cargo-download-cache.outputs.cache-primary-key }}
+      - name: Save Cargo build outputs after build
+        if: always() && steps.cargo-cache-state.outputs.build == 'true' && steps.cargo-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/snow-shot-macos-${{ matrix.arch }}-performance/cargo
+          key: ${{ steps.cargo-build-cache.outputs.cache-primary-key }}
       - name: Verify personal edition behavior
         run: |
           ctest --test-dir build/snow-shot-macos-${{ matrix.arch }}-performance \
@@ -152,6 +276,7 @@ jobs:
         with:
           name: xiaomage-macos-${{ matrix.arch }}
           path: dist/personal-macos/*
+          compression-level: 0
           if-no-files-found: error
           retention-days: 30
       - name: Upload build diagnostics
@@ -164,4 +289,10 @@ jobs:
             build/snow-shot-macos-${{ matrix.arch }}-performance/CMakeFiles/CMakeConfigureLog.yaml
             build/snow-shot-macos-${{ matrix.arch }}-performance/Testing/Temporary/LastTest.log
             build/snow-shot-macos-${{ matrix.arch }}-performance/macos-ocr-verification.json
+            build/snow-shot-macos-${{ matrix.arch }}-performance/cargo/**/build/*/output
+            build/snow-shot-macos-${{ matrix.arch }}-performance/cargo/**/build/*/stderr
+            build/snow-shot-macos-${{ matrix.arch }}-performance/cargo/**/.fingerprint/*/output-*
+            .tools/personal-metal-check/*.log
+            .tools/personal-metal-check/result.json
+          include-hidden-files: true
           if-no-files-found: ignore

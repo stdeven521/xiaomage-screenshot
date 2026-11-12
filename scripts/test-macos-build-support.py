@@ -1091,6 +1091,13 @@ class MacOSBuildScripts(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         shutil.copytree(ROOT / "scripts", self.root / "scripts")
+        # Patch application has separate real-Git tests. This shell fixture only
+        # exercises orchestration and has no initialized OCR submodule checkout.
+        (self.root / 'scripts/prepare-personal-macos-ocr.py').write_text(
+            'import json, os, sys\n'
+            'with open(os.environ["SNOW_TEST_LOG"], "a") as log:\n'
+            '    log.write(json.dumps(["prepare-personal-macos-ocr"]) + "\\n")\n'
+            'sys.exit(17 if os.environ.get("FAIL_PREPARE_MACOS_OCR") else 0)\n')
         ocr_pin = self.root / 'snow-crates/crates/simd-paddle-ocr-rs/rust-toolchain.toml'
         ocr_pin.parent.mkdir(parents=True)
         shutil.copyfile(ROOT / 'snow-crates/crates/simd-paddle-ocr-rs/rust-toolchain.toml', ocr_pin)
@@ -1364,6 +1371,18 @@ if name == 'openssl':
         self.assertIn(['rustup', 'target', 'add', 'x86_64-apple-darwin'], calls)
         self.assertFalse(any(c[:2] == ['rustup', 'component'] and 'add' in c for c in calls))
         self.assertFalse(any(c[:3] == ['rustup', 'toolchain', 'install'] for c in calls))
+
+    def test_bootstrap_prepares_ocr_before_installing_dependencies(self):
+        calls = self.run_script('bootstrap-macos.sh')
+        prepare_index = calls.index(['prepare-personal-macos-ocr'])
+        self.assertLess(prepare_index, next(i for i, call in enumerate(calls)
+                                          if call[0] == 'vcpkg'))
+
+    def test_bootstrap_stops_on_ocr_patch_conflict(self):
+        self.env['FAIL_PREPARE_MACOS_OCR'] = '1'
+        calls = self.run_script('bootstrap-macos.sh', success=False)
+        self.assertIn(['prepare-personal-macos-ocr'], calls)
+        self.assertFalse(any(call[0] in ('rustup', 'vcpkg') for call in calls))
 
     def test_rust_minimum_accepts_newer_and_rejects_older_before_building(self):
         for version in ('1.97.1', '1.97.2', '1.100.0', '2.0.0'):

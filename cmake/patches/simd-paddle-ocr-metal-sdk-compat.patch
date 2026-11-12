@@ -1,0 +1,52 @@
+diff --git a/src/runtime/gpu/metal/build.rs b/src/runtime/gpu/metal/build.rs
+--- a/src/runtime/gpu/metal/build.rs
++++ b/src/runtime/gpu/metal/build.rs
+@@ -17,6 +17,7 @@ pub fn build() {
+     println!("cargo:rerun-if-changed=src/runtime/gpu/metal");
+     println!("cargo:rerun-if-env-changed=DEVELOPER_DIR");
+     println!("cargo:rerun-if-env-changed=TOOLCHAINS");
++    println!("cargo:rerun-if-env-changed=SDKROOT");
+     println!("cargo:rerun-if-env-changed=SIMD_OCR_METAL_TOOLCHAIN");
+     let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+     let toolchain = env::var_os("SIMD_OCR_METAL_TOOLCHAIN").map(PathBuf::from);
+@@ -154,12 +155,6 @@ pub fn build() {
+             fs::write(&inventory_paths[index], &inventories[index]).unwrap();
+         }
+     }
+-    let script = serde_json::to_string(&serde_json::json!({
+-        "libraries":{"paths":[{"label":"OCR", "path":out.join("ocr.metallib")}]},
+-        "pipelines":{"compute_pipelines":native_pipelines}
+-    }))
+-    .unwrap();
+-    let script_path = out.join("ocr.mtlp-json");
+     // Native pipeline binaries are OS-version specific, unlike the portable IR.
+     let sdk = Command::new("xcrun")
+         .args(["--sdk", "macosx", "--show-sdk-version"])
+@@ -175,6 +170,27 @@ pub fn build() {
+         .unwrap()
+         .parse()
+         .expect("invalid SDK version");
++    // These optional descriptor properties were introduced in macOS 27.
++    // Older translators reject the fields even when they hold default values.
++    // Omitting them preserves the runtime's default pipeline descriptor and
++    // keeps both the portable IR and GPU-specific native archive enabled.
++    if sdk_major < 27 {
++        for pipeline in &mut native_pipelines {
++            for field in [
++                "optimize_for_persistent_kernel",
++                "forward_progress_usage",
++                "contention_relief",
++            ] {
++                pipeline.as_object_mut().unwrap().remove(field);
++            }
++        }
++    }
++    let script = serde_json::to_string(&serde_json::json!({
++        "libraries":{"paths":[{"label":"OCR", "path":out.join("ocr.metallib")}]},
++        "pipelines":{"compute_pipelines":native_pipelines}
++    }))
++    .unwrap();
++    let script_path = out.join("ocr.mtlp-json");
+     let native_target = format!("air64-apple-macos{sdk_major}.0");
+     let native_fingerprint = format!("{native_target};applegpu_g16g;reflection-v1");
+     println!("cargo:rustc-env=SIMD_OCR_METAL_ARCHIVE_OS={sdk_major}");
