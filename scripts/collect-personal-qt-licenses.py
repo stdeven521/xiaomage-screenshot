@@ -17,7 +17,7 @@ import urllib.request
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = ('qt5', 'qtbase', 'qtsvg', 'qttools', 'qttranslations')
+MODULES = ('qt5', 'qtbase', 'qtdeclarative', 'qtsvg', 'qttools', 'qttranslations')
 MARKER = 'complete.json'
 
 

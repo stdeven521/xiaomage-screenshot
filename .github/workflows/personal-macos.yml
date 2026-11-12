@@ -60,7 +60,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Qt/6.12.0
-          key: personal-macos-qt-6.12.0-v1
+          key: personal-macos-qt-6.12.0-v2
       - name: Restore native dependencies
         uses: actions/cache/restore@v4
         id: native-cache
@@ -76,10 +76,13 @@ jobs:
           python3 -m venv .tools/ci-python
           .tools/ci-python/bin/pip install 'cmake==4.2.3' aqtinstall
           echo "$GITHUB_WORKSPACE/.tools/ci-python/bin" >> "$GITHUB_PATH"
-          if [[ ! -f "$HOME/Qt/6.12.0/macos/lib/cmake/Qt6/Qt6Config.cmake" ]]; then
+          if [[ ! -f "$HOME/Qt/6.12.0/macos/lib/cmake/Qt6/Qt6Config.cmake" ||
+                ! -f "$HOME/Qt/6.12.0/macos/lib/QtQml.framework/Versions/A/QtQml" ]]; then
             .tools/ci-python/bin/python -m aqt install-qt mac desktop 6.12.0 clang_64 \
-              --outputdir "$HOME/Qt" --archives qtbase qtsvg qttools qttranslations
+              --outputdir "$HOME/Qt" --archives qtbase qtdeclarative qtsvg qttools qttranslations
           fi
+          # Qt's official lrelease links QtQml even for our Widgets-only app.
+          "$HOME/Qt/6.12.0/macos/bin/lrelease" -version
           echo "Qt6_DIR=$HOME/Qt/6.12.0/macos/lib/cmake/Qt6" >> "$GITHUB_ENV"
           mkdir -p .tools/vcpkg-binaries
           rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy
