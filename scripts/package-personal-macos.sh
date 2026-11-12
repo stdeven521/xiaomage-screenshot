@@ -24,6 +24,17 @@ packages=("$build_dir"/xiaomage-screenshot-*-macos-"$expected_arch".dmg)
     echo 'Expected exactly one personal DMG.' >&2; exit 1;
 }
 dmg="${packages[0]}"
+python3 - "$dmg" <<'PY'
+from pathlib import Path
+import sys
+
+size = Path(sys.argv[1]).stat().st_size
+print(f'DMG size: {size} bytes ({size / 1_000_000:.6f} MB, '
+      f'{size / 1_048_576:.6f} MiB).', flush=True)
+if size >= 2_000_000_000:
+    raise SystemExit(f'DMG is {size} bytes; it must be strictly smaller than '
+                     '2000000000 bytes (2 GB). No upload files were produced.')
+PY
 mount_dir="$(mktemp -d "${TMPDIR:-/tmp}/xiaomage-package.XXXXXX")"
 mounted=0
 cleanup() {
