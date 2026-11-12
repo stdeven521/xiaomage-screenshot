@@ -120,6 +120,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/collect-personal-qt-licenses.py --qt-prefix "$HOME/Qt/6.12.0/macos"
+      - name: Verify personal package tooling
+        run: python3 scripts/test-personal-macos-package.py
       - name: Bootstrap full native dependencies
         run: bash scripts/bootstrap-macos.sh snow-shot-macos-${{ matrix.arch }}-performance
       - name: Save native dependency cache
@@ -133,8 +135,6 @@ jobs:
           python3 scripts/test-macos-build-support.py \
             MacOSBuildScripts.test_bootstrap_prepares_ocr_before_installing_dependencies \
             MacOSBuildScripts.test_bootstrap_stops_on_ocr_patch_conflict
-      - name: Verify personal package tooling
-        run: python3 scripts/test-personal-macos-package.py
       - name: Verify isolated native headers
         run: |
           dependency_include="$GITHUB_WORKSPACE/.tools/macos/installed/dynamic/${{ matrix.arch }}-osx-snow-shot/include"

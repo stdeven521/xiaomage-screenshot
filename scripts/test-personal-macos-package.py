@@ -120,6 +120,20 @@ class PersonalPackageStaging(unittest.TestCase):
         self.assertFalse(any('worker-link' in str(call) or 'external' in str(call)
                              for call in self.calls))
 
+    def test_embedded_dsym_files_are_counted_but_never_thinned_stripped_or_signed(self):
+        before = package.bundle_bytes(self.app)
+        symbols = [self.binary(
+            'Contents/Frameworks/QtCore.framework/Versions/A/QtCore.dSYM/'
+            'Contents/Resources/DWARF/QtCore', fat=True), self.binary(
+            'Contents/Resources/worker.dSYM/Contents/Resources/DWARF/intel-only')]
+        originals = {path: path.read_bytes() for path in symbols}
+        result = self.slim()
+        self.assertEqual(result['beforeSlimBytes'], before + sum(map(len, originals.values())))
+        self.assertEqual(result['machOBinaries'], 5)
+        self.assertEqual(result['strippedBinaries'], 5)
+        self.assertEqual({path: path.read_bytes() for path in symbols}, originals)
+        self.assertFalse(any('.dSYM' in str(call) for call in self.calls))
+
     def test_non_staging_app_is_rejected_without_any_tool_call(self):
         original = self.root / 'snow_shot.app'
         self.app.rename(original)
@@ -256,6 +270,13 @@ class PersonalPackageNative(unittest.TestCase):
             package.run('xcrun', 'clang', '-arch', 'arm64', '-arch', 'x86_64',
                         '-g', '-O0', '-dynamiclib', str(library_source), '-o', str(library),
                         '-Wl,-install_name,@rpath/Fixture.framework/Versions/A/Fixture')
+            library_symbols = version / 'Fixture.dSYM'
+            package.run('xcrun', 'dsymutil', str(library), '-o', str(library_symbols))
+            library_symbol_uuids = package.run('xcrun', 'dwarfdump', '--uuid',
+                                              str(library_symbols))
+            library_arm64_uuid = next(line.split()[1]
+                                      for line in library_symbol_uuids.splitlines()
+                                      if '(arm64)' in line)
             source = root / 'main.c'
             source.write_text('#include <dlfcn.h>\nint main(void) {\n'
                               'void *handle = dlopen("../Frameworks/Fixture.framework/Fixture", RTLD_NOW);\n'
@@ -267,6 +288,9 @@ class PersonalPackageNative(unittest.TestCase):
                         '-o', str(original))
             symbols = root / 'original.dSYM'
             package.run('xcrun', 'dsymutil', str(original), '-o', str(symbols))
+            symbol_hashes = {path: hashlib.sha256(path.read_bytes()).hexdigest()
+                             for directory in (symbols, library_symbols)
+                             for path in package.real_files(directory)}
             original_hash = hashlib.sha256(original.read_bytes()).hexdigest()
             original_uuid = package.run('xcrun', 'dwarfdump', '--uuid', str(original)).split()[1]
             original_exports = package.run('/usr/bin/nm', '-arch', 'arm64', '-gUj', str(library))
@@ -287,6 +311,13 @@ class PersonalPackageNative(unittest.TestCase):
                                          str(runtime / 'snow_shot')).split()[1], original_uuid)
             self.assertEqual(package.run('xcrun', 'dwarfdump', '--uuid', str(symbols)).split()[1],
                              original_uuid)
+            self.assertEqual(package.run('xcrun', 'dwarfdump', '--uuid', str(library)).split()[1],
+                             library_arm64_uuid)
+            self.assertEqual(package.run('xcrun', 'dwarfdump', '--uuid', str(library_symbols)),
+                             library_symbol_uuids)
+            self.assertEqual({path: hashlib.sha256(path.read_bytes()).hexdigest()
+                              for directory in (symbols, library_symbols)
+                              for path in package.real_files(directory)}, symbol_hashes)
             self.assertEqual(hashlib.sha256(original.read_bytes()).hexdigest(), original_hash)
             self.assertGreater(result['beforeSlimBytes'], result['afterStrippingBytes'])
 

@@ -24,10 +24,12 @@ def run(*command):
                                    timeout=120).strip()
 
 
-def real_files(directory):
+def real_files(directory, *, exclude_dsym=False):
     for current, directories, files in os.walk(directory, followlinks=False):
         parent = Path(current)
-        directories[:] = [name for name in directories if not (parent / name).is_symlink()]
+        directories[:] = [name for name in directories
+                          if not (parent / name).is_symlink()
+                          and not (exclude_dsym and name.endswith('.dSYM'))]
         for name in files:
             path = parent / name
             if not path.is_symlink() and path.is_file():
@@ -51,7 +53,9 @@ def slim_bundle(app, staging_root, identity):
         raise ValueError('Expected the full personal application executable')
     main = app / 'Contents/MacOS' / executable
     binaries = []
-    for path in sorted(real_files(app)):
+    # dSYM DWARF files also have Mach-O headers, but are debug companions rather
+    # than runtime code. Preserve them; bundle_bytes still counts their storage.
+    for path in sorted(real_files(app, exclude_dsym=True)):
         if not path.resolve().is_relative_to(app.resolve()):
             raise ValueError(f'Bundle file escapes staging: {path}')
         with path.open('rb') as source:
