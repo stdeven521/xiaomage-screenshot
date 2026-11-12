@@ -18,6 +18,7 @@ on:
         options:
           - macos-26
           - macos-15
+          - xcode-27
 
 permissions:
   contents: read
@@ -50,23 +51,32 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
-      - name: Select Xcode 26 toolchain
+      - name: Select matching stable Xcode toolchain
+        id: xcode
+        env:
+          XCODE_MAJOR: ${{ matrix.runner == 'xcode-27' && '27' || '26' }}
         run: |
           xcode_path="$(python3 - <<'PY'
           from pathlib import Path
+          import os
           import re
+          major = os.environ['XCODE_MAJOR']
           candidates = []
-          for app in Path('/Applications').glob('Xcode_26*.app'):
-              match = re.fullmatch(r'Xcode_(26\.\d+(?:\.\d+)?)\.app', app.name)
+          for app in Path('/Applications').glob(f'Xcode_{major}*.app'):
+              match = re.fullmatch(rf'Xcode_({major}\.\d+(?:\.\d+)?)\.app', app.name)
               if match:
                   candidates.append((tuple(map(int, match[1].split('.'))), app))
           if not candidates:
-              raise SystemExit('An installed stable Xcode 26 toolchain is required')
+              raise SystemExit(f'An installed stable Xcode {major} toolchain is required')
           print(max(candidates)[1] / 'Contents/Developer')
           PY
           )"
           sudo xcode-select --switch "$xcode_path"
-          xcodebuild -version
+          xcode_version="$(xcodebuild -version)"
+          printf '%s\n' "$xcode_version"
+          xcode_major="$(printf '%s\n' "$xcode_version" | sed -n 's/^Xcode \([0-9][0-9]*\)\..*/\1/p')"
+          [[ "$xcode_major" == "$XCODE_MAJOR" ]]
+          echo "major=$xcode_major" >> "$GITHUB_OUTPUT"
           # CMake 4 defaults to an empty sysroot. An explicit SDK also prevents
           # /usr/bin clang from preferring Intel Homebrew headers in /usr/local.
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "$GITHUB_ENV"
@@ -80,10 +90,10 @@ jobs:
         id: native-cache
         with:
           path: .tools/vcpkg-binaries
-          key: personal-macos-${{ matrix.arch }}-xcode26-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-${{ github.run_id }}
+          key: personal-macos-${{ matrix.arch }}-xcode${{ steps.xcode.outputs.major }}-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-${{ github.run_id }}
           restore-keys: |
-            personal-macos-${{ matrix.arch }}-xcode26-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-
-            personal-macos-${{ matrix.arch }}-xcode26-vcpkg-
+            personal-macos-${{ matrix.arch }}-xcode${{ steps.xcode.outputs.major }}-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-
+            personal-macos-${{ matrix.arch }}-xcode${{ steps.xcode.outputs.major }}-vcpkg-
       - name: Install build tools and Qt
         run: |
           brew install ninja pkgconf nasm autoconf automake libtool clang-format
