@@ -839,6 +839,55 @@ endif()
 
 
 class MacOSMinizipExports(unittest.TestCase):
+    def test_macos_uses_declared_zlib_and_system_encryption_only(self):
+        cmake = shutil.which('cmake')
+        self.assertIsNotNone(cmake)
+        port = ROOT / 'cmake/vcpkg-overlay-ports/minizip-ng/portfile.cmake'
+        macos_options = {
+            '-DMZ_ZLIB_FLAVOR=zlib', '-DMZ_LIBCOMP=OFF', '-DMZ_BZIP2=OFF',
+            '-DMZ_LZMA=OFF', '-DMZ_ZSTD=OFF', '-DMZ_PKCRYPT=ON', '-DMZ_WZAES=ON',
+            '-DMZ_OPENSSL=OFF', '-DMZ_LIBBSD=OFF',
+        }
+        for platform in ('OSX', 'WINDOWS'):
+            for zlib in ('ON', 'OFF'):
+                with self.subTest(platform=platform, zlib=zlib), \
+                        tempfile.TemporaryDirectory(prefix='snow minizip options ') as directory:
+                    root = Path(directory)
+                    package = root / 'package/share/minizip-ng'
+                    package.mkdir(parents=True)
+                    (package / 'minizip-ng.cmake').write_text('# export fixture\n')
+                    (package / 'minizip-ng-config.cmake').write_text('find_dependency(ZLIB)\n')
+                    mocks = ''.join(f'function({command})\nendfunction()\n' for command in
+                                    ('vcpkg_from_github', 'vcpkg_check_linkage',
+                                     'vcpkg_cmake_install', 'vcpkg_fixup_pkgconfig',
+                                     'vcpkg_cmake_config_fixup', 'vcpkg_copy_pdbs',
+                                     'vcpkg_install_copyright'))
+                    fixture = root / 'fixture.cmake'
+                    fixture.write_text(f'''
+cmake_minimum_required(VERSION 4.2)
+set(VCPKG_TARGET_IS_{platform} TRUE)
+set(CURRENT_PACKAGES_DIR [==[{(root / 'package').as_posix()}]==])
+{mocks}
+function(vcpkg_check_features)
+    set(FEATURE_OPTIONS -DMZ_ZLIB={zlib} PARENT_SCOPE)
+endfunction()
+function(vcpkg_cmake_configure)
+    file(WRITE [==[{(root / 'options.txt').as_posix()}]==] "${{ARGV}}")
+endfunction()
+include([==[{port.as_posix()}]==])
+''')
+                    result = subprocess.run([cmake, '-P', str(fixture)],
+                                            text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    options = (root / 'options.txt').read_text().split(';')
+                    self.assertEqual([option for option in options if option.startswith('-DMZ_ZLIB=')],
+                                     [f'-DMZ_ZLIB={zlib}'])
+                    if platform == 'OSX':
+                        self.assertTrue(macos_options.issubset(options))
+                        self.assertIn('find_dependency(ZLIB)', result.stdout)
+                    else:
+                        self.assertFalse(macos_options.intersection(options))
+
     def test_system_dependencies_do_not_retain_the_package_builders_sdk(self):
         managed_cmake = ROOT / '.tools/macos-dev/bin/cmake'
         cmake = str(managed_cmake) if managed_cmake.is_file() else shutil.which('cmake')

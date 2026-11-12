@@ -66,6 +66,7 @@ jobs:
           key: personal-macos-${{ matrix.arch }}-xcode26-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-${{ github.run_id }}
           restore-keys: |
             personal-macos-${{ matrix.arch }}-xcode26-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-
+            personal-macos-${{ matrix.arch }}-xcode26-vcpkg-
       - name: Install build tools and Qt
         run: |
           brew install ninja pkgconf nasm autoconf automake libtool clang-format
