@@ -1459,8 +1459,12 @@ void screenshotUiSchemaRepairsStructuredValues() {
                      QJsonArray{QStringLiteral("text-recognition")},
                      QJsonArray{QStringLiteral("text-translation")},
                      QJsonArray{QStringLiteral("scrolling-screenshot")},
-                     QJsonArray{QStringLiteral("upload-to-cloud"), QStringLiteral("print"),
-                                QStringLiteral("quick-save"), QStringLiteral("save-as-file")},
+                     QJsonArray{QStringLiteral("upload-to-cloud"),
+#ifdef Q_OS_MACOS
+                                QStringLiteral("airdrop"),
+#endif
+                                QStringLiteral("print"), QStringLiteral("quick-save"),
+                                QStringLiteral("save-as-file")},
                      QJsonArray{QStringLiteral("separator")},
                      QJsonArray{QStringLiteral("cancel")},
                      QJsonArray{QStringLiteral("copy")},
@@ -1600,11 +1604,15 @@ void screenshotUiSchemaRepairsStructuredValues() {
         normalizedActions.valid && normalizedActions.changed && actionLayout.size() == 2 &&
             actionLayout.value(QStringLiteral("positions")).toArray() ==
                 QJsonArray{
-                    QJsonArray{
-                        QStringLiteral("upload-to-cloud"), QStringLiteral("print"),
-                        QStringLiteral("quick-save"), QStringLiteral("save-as-file"),
-                        QStringLiteral("table-recognition"), QStringLiteral("convert-to-markdown"),
-                        QStringLiteral("latex-recognition"), QStringLiteral("convert-to-html")},
+                    QJsonArray{QStringLiteral("upload-to-cloud"),
+#ifdef Q_OS_MACOS
+                               QStringLiteral("airdrop"),
+#endif
+                               QStringLiteral("print"), QStringLiteral("quick-save"),
+                               QStringLiteral("save-as-file"), QStringLiteral("table-recognition"),
+                               QStringLiteral("convert-to-markdown"),
+                               QStringLiteral("latex-recognition"),
+                               QStringLiteral("convert-to-html")},
                     QJsonArray{QStringLiteral("record-screen")},
                     QJsonArray{QStringLiteral("pin-window-to-screen"),
                                QStringLiteral("pin-to-screen")},
@@ -1629,6 +1637,9 @@ void screenshotUiSchemaRepairsStructuredValues() {
                     QStringLiteral("pin-window-to-screen"), QStringLiteral("pin-to-screen"),
                     QStringLiteral("text-recognition"), QStringLiteral("text-translation"),
                     QStringLiteral("scrolling-screenshot"), QStringLiteral("upload-to-cloud"),
+#ifdef Q_OS_MACOS
+                    QStringLiteral("airdrop"),
+#endif
                     QStringLiteral("print"), QStringLiteral("quick-save"),
                     QStringLiteral("save-as-file"), QStringLiteral("separator"),
                     QStringLiteral("cancel"), QStringLiteral("copy")}},
@@ -1759,6 +1770,9 @@ void screenshotUiAdaptersRoundTripTypedValues() {
          QStringLiteral("convert-to-html"), QStringLiteral("latex-recognition"),
          QStringLiteral("text-recognition"), QStringLiteral("text-translation"),
          QStringLiteral("scrolling-screenshot"), QStringLiteral("print"),
+#ifdef Q_OS_MACOS
+         QStringLiteral("airdrop"),
+#endif
          QStringLiteral("separator"), QStringLiteral("cancel"), QStringLiteral("copy")},
     };
     require(toolbar.setLayout(storage::ScreenshotToolbarLayoutKind::ActionTools, actionLayout) &&
@@ -1782,8 +1796,12 @@ void screenshotUiAdaptersRoundTripTypedValues() {
         {}};
     auto upgradedPinned = pinnedLayout;
     upgradedPinned.positions.append({QStringLiteral("separator")});
-    upgradedPinned.positions.append({QStringLiteral("upload-to-cloud"), QStringLiteral("print"),
-                                     QStringLiteral("quick-save"), QStringLiteral("save-as-file")});
+    upgradedPinned.positions.append({QStringLiteral("upload-to-cloud"),
+#ifdef Q_OS_MACOS
+                                     QStringLiteral("airdrop"),
+#endif
+                                     QStringLiteral("print"), QStringLiteral("quick-save"),
+                                     QStringLiteral("save-as-file")});
     upgradedPinned.positions.append({QStringLiteral("copy")});
     upgradedPinned.positions.append({QStringLiteral("confirm-separator")});
     upgradedPinned.positions.append({QStringLiteral("confirm")});

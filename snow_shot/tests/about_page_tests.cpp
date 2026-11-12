@@ -726,9 +726,16 @@ void traySettingsAndFunctionNavigation() {
                                  {QStringLiteral("tray/menu_options"), QJsonArray{}}}),
         "modify the icon and menu settings in the merged tray section");
     require(session.reset(settings::SettingsSectionReset::Tray) &&
-                backend.selectValue(left).toString() == QStringLiteral("screenshot") &&
-                backend.selectValue(middle).toString() == QStringLiteral("screenshot_fixed"),
-            "reset must restore both modified tray settings");
+                backend.selectValue(left).toString() == QStringLiteral("screenshot"),
+            "reset must restore the modified tray left-click setting");
+#ifdef Q_OS_MACOS
+    // macOS does not expose a middle-click field in the tray settings section.
+    require(backend.selectValue(middle).toString() == QStringLiteral("open_function_settings"),
+            "macOS tray reset must preserve the hidden middle-click setting");
+#else
+    require(backend.selectValue(middle).toString() == QStringLiteral("screenshot_fixed"),
+            "tray reset must restore the modified middle-click setting");
+#endif
     for (const QString& key :
          {QStringLiteral("tray/enabled"), QStringLiteral("tray/icon"),
           QStringLiteral("tray/custom_icon"), QStringLiteral("tray/dark_icon"),

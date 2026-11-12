@@ -2,12 +2,22 @@ name: Personal macOS packages
 
 on:
   workflow_dispatch:
+    inputs:
+      architecture:
+        description: Mac architecture to build
+        type: choice
+        required: false
+        default: both
+        options:
+          - both
+          - arm64
+          - x64
 
 permissions:
   contents: read
 
 concurrency:
-  group: personal-macos-${{ github.ref }}-${{ github.sha }}
+  group: personal-macos-${{ github.ref }}-${{ github.sha }}-${{ inputs.architecture || 'both' }}
   cancel-in-progress: false
 
 jobs:
@@ -15,12 +25,12 @@ jobs:
     name: macOS ${{ matrix.arch }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - arch: arm64
-            runner: macos-26
-          - arch: x64
-            runner: macos-15-intel
+      matrix: >-
+        ${{ fromJSON(
+          inputs.architecture == 'arm64' && '{"include":[{"arch":"arm64","runner":"macos-26"}]}' ||
+          inputs.architecture == 'x64' && '{"include":[{"arch":"x64","runner":"macos-15-intel"}]}' ||
+          '{"include":[{"arch":"arm64","runner":"macos-26"},{"arch":"x64","runner":"macos-15-intel"}]}'
+        ) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     env:
