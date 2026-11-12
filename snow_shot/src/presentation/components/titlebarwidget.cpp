@@ -1,12 +1,10 @@
 #include "snow_shot/app/edition.h"
 #include "snow_shot/presentation/components/titlebarwidget.h"
 
-#include "snow_shot/presentation/components/icons/snowshoticons.h"
 #include "snow_shot/presentation/styles/thememanager.h"
 #include "snow_shot/presentation/styles/themecolorscheme.h"
 
 #include "antd_icons.h"
-#include "icon_renderer.h"
 #include "widgets/button.h"
 #include "widgets/navigation_menu.h"
 #include "widgets/window_size_icon.h"
@@ -19,43 +17,20 @@
 #include <QApplication>
 #include <QColor>
 #include <QEnterEvent>
+#include <QFont>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPalette>
-#include <QLabel>
 #ifdef Q_OS_WIN
 #include <qt_windows.h>
 #endif
-#include <QPixmap>
 #include <QWindow>
 
 namespace {
 namespace outlined_icons = adqt::icons::antd::outlined;
-namespace custom_icons = snow_shot::presentation::icons::custom;
-
-QPixmap renderBrandLogo(int logicalHeight, const QColor& color, qreal devicePixelRatio) {
-    if (logicalHeight <= 0 || !color.isValid()) {
-        return {};
-    }
-
-    constexpr qreal aspectRatio = snow_shot::app::edition::isMini ? 137.0 / 17.0 : 95.0 / 17.0;
-    const int logicalWidth =
-        static_cast<int>(std::llround(static_cast<qreal>(logicalHeight) * aspectRatio));
-    if (logicalWidth <= 0) {
-        return {};
-    }
-
-    adqt::icons::IconRenderRequest request;
-    request.logicalSize = QSize(logicalWidth, logicalHeight);
-    request.devicePixelRatio = devicePixelRatio;
-    const auto colors = adqt::icons::IconColors::primary(color);
-    const auto logo = snow_shot::app::edition::isMini
-                          ? custom_icons::brand::SnowShotMiniLogo(colors)
-                          : custom_icons::brand::SnowShotLogo(colors);
-    return adqt::icons::renderIconPixmap(logo, request);
-}
 
 #ifndef Q_OS_MACOS
 enum class WindowButtonKind : std::uint8_t {
@@ -225,14 +200,10 @@ void refreshWindowControlButtonTheme(QAbstractButton* button) {
 
 TitleBarWidget::TitleBarWidget(const snow_shot::presentation::styles::ThemeAliasMetricToken& metric,
                                QWidget* parent)
-    : QFrame(parent), m_logoHeight(std::clamp(metric.fontSizeSM, 10, 14)) {
+    : QFrame(parent), m_titleFontSize(std::clamp(metric.fontSizeSM, 12, 14)) {
     setAutoFillBackground(true);
 #ifdef Q_OS_WIN
     setFixedHeight(CAPTION_HEIGHT);
-    m_applicationIcon = new QLabel(this);
-    m_applicationIcon->setObjectName(QStringLiteral("windowSystemMenuIcon"));
-    m_applicationIcon->setGeometry(16, 8, 16, 16);
-    m_applicationIcon->setProperty("snowWindowCaptionHit", HTSYSMENU);
     window()->installEventFilter(this);
 #else
     setFixedHeight(metric.controlHeight);
@@ -271,16 +242,6 @@ TitleBarWidget::TitleBarWidget(const snow_shot::presentation::styles::ThemeAlias
     applyTheme(themeManager.themeColorScheme());
 }
 
-bool TitleBarWidget::event(QEvent* event) {
-    const bool handled = QFrame::event(event);
-#ifdef Q_OS_WIN
-    if (event->type() == QEvent::DevicePixelRatioChange && m_applicationIcon != nullptr) {
-        applyTheme(snow_shot::presentation::styles::ThemeManager::instance().themeColorScheme());
-    }
-#endif
-    return handled;
-}
-
 void TitleBarWidget::changeEvent(QEvent* event) {
     QFrame::changeEvent(event);
     if (event->type() == QEvent::LanguageChange) {
@@ -303,10 +264,10 @@ void TitleBarWidget::mousePressEvent(QMouseEvent* event) {
 }
 
 void TitleBarWidget::retranslateUi() {
-    if (snow_shot::app::edition::isMini) {
-        setAccessibleName(snow_shot::app::edition::productName());
-        window()->setWindowTitle(snow_shot::app::edition::productName());
-    }
+    const QString productName = snow_shot::app::edition::productName();
+    setAccessibleName(productName);
+    window()->setAccessibleName(productName);
+    window()->setWindowTitle(productName);
 #ifndef Q_OS_MACOS
     m_closeButton->setToolTip(tr("Close"));
     m_closeButton->setAccessibleName(tr("Close"));
@@ -316,50 +277,40 @@ void TitleBarWidget::retranslateUi() {
     m_maximizeButton->setToolTip(maximizeText);
     m_maximizeButton->setAccessibleName(maximizeText);
 #endif
+    update();
 }
 
 void TitleBarWidget::paintEvent(QPaintEvent* event) {
     QFrame::paintEvent(event);
 
     QPainter painter(this);
-    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    QFont titleFont = font();
+    titleFont.setPixelSize(m_titleFontSize);
+    painter.setFont(titleFont);
 #ifdef Q_OS_WIN
     const QColor color = window()->isActiveWindow()
-                             ? m_logoColor
+                             ? m_titleColor
                              : snow_shot::presentation::styles::ThemeManager::instance()
                                    .themeColorScheme()
                                    .map.colorTextTertiary;
-    const QPixmap wordmark = renderBrandLogo(m_logoHeight, color, devicePixelRatioF());
-    const qreal scale = devicePixelRatioF();
-    const qreal y = qRound((height() * scale - wordmark.height()) / 2.0) / scale;
-    painter.setClipRect(QRect(48, 0, std::max(0, m_minimizeButton->x() - 64), height()));
-    painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
-    painter.drawPixmap(QPointF(48, y), wordmark);
+    painter.setPen(color);
 #else
-    const QPixmap logoPixmap = renderBrandLogo(m_logoHeight, m_logoColor, devicePixelRatioF());
-    if (!logoPixmap.isNull()) {
-        const qreal devicePixelRatio =
-            logoPixmap.devicePixelRatio() > 0.0 ? logoPixmap.devicePixelRatio() : 1.0;
-        const int logoWidth = static_cast<int>(
-            std::lround(static_cast<qreal>(logoPixmap.width()) / devicePixelRatio));
-        const int logoHeight = static_cast<int>(
-            std::lround(static_cast<qreal>(logoPixmap.height()) / devicePixelRatio));
-
-        QWidget* topLevelWindow = window();
-        const qreal windowCenterX = topLevelWindow != nullptr
-                                        ? static_cast<qreal>(topLevelWindow->width()) / 2.0
-                                        : static_cast<qreal>(width()) / 2.0;
-        const qreal localCenterX =
-            topLevelWindow != nullptr
-                ? windowCenterX - static_cast<qreal>(mapTo(topLevelWindow, QPoint(0, 0)).x())
-                : windowCenterX;
-
-        painter.drawPixmap(
-            QPointF(localCenterX - static_cast<qreal>(logoWidth) / 2.0,
-                    (static_cast<qreal>(height()) - static_cast<qreal>(logoHeight)) / 2.0),
-            logoPixmap);
-    }
+    painter.setPen(m_titleColor);
 #endif
+    const QString productName = snow_shot::app::edition::productName();
+#ifdef Q_OS_MACOS
+    const int windowCenterX = window()->width() / 2 - mapTo(window(), QPoint(0, 0)).x();
+    const int titleWidth = std::min(QFontMetrics(titleFont).horizontalAdvance(productName), width());
+    const QRect titleRect(windowCenterX - titleWidth / 2, 0, titleWidth, height());
+    constexpr auto alignment = Qt::AlignCenter;
+#else
+    const QRect titleRect(16, 0, std::max(0, m_minimizeButton->x() - 32), height());
+    constexpr auto alignment = Qt::AlignLeft | Qt::AlignVCenter;
+#endif
+    painter.setClipRect(titleRect);
+    painter.drawText(titleRect, alignment,
+                     QFontMetrics(titleFont).elidedText(productName, Qt::ElideRight,
+                                                        titleRect.width()));
 }
 
 bool TitleBarWidget::eventFilter(QObject* watched, QEvent* event) {
@@ -374,20 +325,7 @@ bool TitleBarWidget::eventFilter(QObject* watched, QEvent* event) {
 void TitleBarWidget::applyTheme(const snow_shot::presentation::styles::ThemeColorScheme& scheme) {
     m_surfaceColor = adqt::widgets::AdNavigationMenu::resolveColorTokens(this).itemBackground;
     updateSkinMask();
-    m_logoColor = scheme.map.colorText;
-#ifdef Q_OS_WIN
-    adqt::icons::IconRenderRequest request;
-    request.logicalSize = QSize(16, 16);
-    request.devicePixelRatio = devicePixelRatioF();
-    QPixmap icon =
-        adqt::icons::renderIconPixmap(custom_icons::app::ApplicationTitleBarIcon(), request);
-    if (!window()->isActiveWindow()) {
-        QPainter painter(&icon);
-        painter.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-        painter.fillRect(icon.rect(), QColor(0, 0, 0, 128));
-    }
-    m_applicationIcon->setPixmap(icon);
-#endif
+    m_titleColor = scheme.map.colorText;
 
 #ifndef Q_OS_MACOS
     refreshWindowControlButtonTheme(m_minimizeButton);

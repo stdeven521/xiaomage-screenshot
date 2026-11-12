@@ -369,7 +369,8 @@ bool ScreenshotOverlayUiHost::eventFilter(QObject* watched, QEvent* event) {
         (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter);
     const bool trackGuides =
         guidePointerEvent && ((m_toolbar != nullptr && m_toolbar->isVisible()) ||
-                              (m_selectionToolbar != nullptr && m_selectionToolbar->isVisible()));
+                              (m_selectionToolbar != nullptr && m_selectionToolbar->isVisible()) ||
+                              (m_captureModeToolbar && m_captureModeToolbar->isVisible()));
     if (event != nullptr && (pickerVisible || trackGuides)) {
         if (const auto* receiver = qobject_cast<QWidget*>(watched)) {
             auto position = adqt::widgets::detail::pointerEventGlobalPosition(receiver, event);
@@ -408,6 +409,7 @@ void ScreenshotOverlayUiHost::setToolbarCommandSinks(
 
     if (m_selectionToolbar == nullptr) {
         auto* selectionToolbar = new ScreenshotSelectionToolbarWidget(selectionToolbarCommands);
+        selectionToolbar->setScreenshotCompatibilityEnabled(true);
         m_ownedWidgets.add(selectionToolbar);
         m_selectionToolbar = selectionToolbar;
         selectionToolbar->hide();
@@ -643,6 +645,9 @@ bool ScreenshotOverlayUiHost::colorPickerBelongsToOverlay(
 }
 
 bool ScreenshotOverlayUiHost::screenshotUiContainsGlobalPoint(const QPoint& globalPosition) const {
+    if (m_captureModeToolbar && m_captureModeToolbar->isVisible() &&
+        m_captureModeToolbar->rect().contains(m_captureModeToolbar->mapFromGlobal(globalPosition)))
+        return true;
     if (m_toolbar != nullptr && m_toolbar->isVisible() &&
         m_toolbar->containsInteractiveGlobalPoint(globalPosition)) {
         return true;
@@ -740,7 +745,52 @@ bool ScreenshotOverlayUiHost::stepToolbarWatermarkFontSize(int direction) {
            snow_shot::presentation::stepScreenshotStyle(*palette, *m_toolbarStyleCanvas, direction);
 }
 
+void ScreenshotOverlayUiHost::setCaptureModeHandler(
+    std::function<void(ScreenshotCaptureToolbarMode)> handler) {
+    m_captureModeHandler = std::move(handler);
+}
+
+void ScreenshotOverlayUiHost::updateCaptureModeToolbar(ScreenshotOverlayWindow* overlay,
+                                                       ScreenshotCaptureToolbarMode mode,
+                                                       bool enabled) {
+    if (!overlay) {
+        hideCaptureModeToolbar();
+        return;
+    }
+    if (!m_captureModeToolbar) {
+        auto* toolbar = new ScreenshotCaptureModeToolbarWidget;
+        m_captureModeToolbar = toolbar;
+        m_ownedWidgets.add(toolbar);
+        connect(toolbar, &ScreenshotCaptureModeToolbarWidget::modeRequested, this,
+                [this](ScreenshotCaptureToolbarMode requested) {
+                    if (m_captureModeHandler)
+                        m_captureModeHandler(requested);
+                });
+    }
+    if (m_captureModeToolbar->parentWidget() != overlay) {
+        m_captureModeToolbar->hide();
+        m_captureModeToolbar->setParent(overlay, Qt::Widget);
+        m_captureModePositioned = false;
+    }
+    m_captureModeToolbar->setMode(mode);
+    m_captureModeToolbar->setEnabled(enabled);
+    if (!m_captureModePositioned) {
+        m_captureModeToolbar->move(
+            std::max(0, (overlay->width() - m_captureModeToolbar->width()) / 2), 16);
+        m_captureModePositioned = true;
+    }
+    m_captureModeToolbar->show();
+    m_captureModeToolbar->raise();
+}
+
+void ScreenshotOverlayUiHost::hideCaptureModeToolbar() {
+    if (m_captureModeToolbar)
+        m_captureModeToolbar->hide();
+}
+
 void ScreenshotOverlayUiHost::resetToolbarForNewCapture() {
+    hideCaptureModeToolbar();
+    m_captureModePositioned = false;
     setSelectionToolbarHidden(snow_shot::storage::ScreenshotUiSettings().selectionToolbarHidden());
     if (m_toolbar != nullptr) {
         const bool wasVisible = m_toolbar->isVisible();
@@ -765,6 +815,7 @@ void ScreenshotOverlayUiHost::resetToolbarForNewCapture() {
 }
 
 void ScreenshotOverlayUiHost::hideToolbar() {
+    hideCaptureModeToolbar();
     if (m_toolbar != nullptr) {
         m_toolbar->hide();
     }
@@ -839,6 +890,12 @@ void ScreenshotOverlayUiHost::detachOverlayTransientUi(ScreenshotOverlayWindow* 
         return;
     }
 
+    if (m_captureModeToolbar && m_captureModeToolbar->parentWidget() == overlay) {
+        m_captureModeToolbar->hide();
+        m_captureModeToolbar->setParent(nullptr);
+        m_captureModePositioned = false;
+    }
+
     if (m_selectionToolbar != nullptr && m_selectionToolbar->parentWidget() == overlay) {
         m_selectionToolbar->hide();
         m_selectionToolbar->setParent(nullptr);
@@ -878,6 +935,7 @@ void ScreenshotOverlayUiHost::detachOverlayTransientUi(ScreenshotOverlayWindow* 
 }
 
 void ScreenshotOverlayUiHost::destroyUiResources() {
+    hideCaptureModeToolbar();
     delete m_toolbarStyleBinding.data();
     m_toolbarStyleBinding = nullptr;
     if (m_toolbarStyleConnection) {
@@ -917,6 +975,8 @@ void ScreenshotOverlayUiHost::destroyUiResources() {
     }
 
     m_ownedWidgets.clear();
+    m_captureModeToolbar = nullptr;
+    m_captureModePositioned = false;
     m_toolbar = nullptr;
     m_selectionToolbar = nullptr;
     m_colorPicker = nullptr;

@@ -96,6 +96,9 @@ class ScreenshotCaptureWorkflow final : private ScreenshotCaptureWorkerEventSink
     void handleDisplayConfigurationChanged();
 
   private:
+#ifdef SNOW_SHOT_CONTROLLER_LIFETIME_TESTS
+    friend class ScreenshotControllerTestAccess;
+#endif
     void clearCapturePresentationReadiness();
     void resetCaptureModels();
     void clearDisplays();

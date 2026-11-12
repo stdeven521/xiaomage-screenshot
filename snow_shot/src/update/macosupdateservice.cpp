@@ -108,7 +108,7 @@ struct UpdateService::Impl {
     Impl(UpdateService& owner, Options value)
         : q(owner), options(std::move(value)), network(&owner), schedule(&owner), github(&owner),
           gitee(&owner) {
-        status.state = UpdateState::Idle;
+        status.state = options.enabled ? UpdateState::Idle : UpdateState::Unavailable;
         if (options.installedVersion.isEmpty())
             options.installedVersion = QStringLiteral(SNOW_SHOT_VERSION);
         schedule.setSingleShot(true);
@@ -127,7 +127,7 @@ struct UpdateService::Impl {
         return github.active || gitee.active;
     }
     void arm(std::chrono::milliseconds delay) {
-        if (started && mode == u"check")
+        if (options.enabled && started && mode == u"check")
             schedule.start(delay);
     }
     void stopRequest(Channel& source) {
@@ -402,6 +402,10 @@ struct UpdateService::Impl {
         state.deadline.start(options.requestTimeout);
     }
     void check(bool user) {
+        if (!options.enabled) {
+            emit q.operationFinished(QStringLiteral("check"), QStringLiteral("unsupported"));
+            return;
+        }
         if (!user && mode == u"manual")
             return;
         if (busy()) {
@@ -453,7 +457,7 @@ const UpdateStatus& UpdateService::status() const {
     return m_impl->status;
 }
 UpdateCapabilities UpdateService::capabilities() const {
-    return {true, false, false};
+    return {m_impl->options.enabled, false, false};
 }
 void UpdateService::setHandoffApproval(QObject*, std::function<bool()>) {}
 void UpdateService::setHandoffValidation(QObject*, std::function<bool()>) {}
@@ -464,12 +468,14 @@ bool UpdateService::busy() const {
     return m_impl->busy();
 }
 void UpdateService::start() {
-    if (m_impl->started)
+    if (!m_impl->options.enabled || m_impl->started)
         return;
     m_impl->started = true;
     m_impl->arm(m_impl->options.startupCheckDelay);
 }
 void UpdateService::setMode(const QString& value) {
+    if (!m_impl->options.enabled)
+        return;
     const QString mode = value == u"download" ? QStringLiteral("check") : value;
     if ((mode != u"manual" && mode != u"check") || mode == m_impl->mode)
         return;

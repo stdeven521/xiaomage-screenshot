@@ -274,6 +274,29 @@ pub unsafe extern "C" fn snow_viewport_set_watermark_config_ex(
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn snow_viewport_set_watermark_config_without_history_ex(
+    runtime: SnowRuntime,
+    viewport: SnowViewport,
+    config: *const SnowWatermarkConfig,
+    out_changed_viewports: *mut SnowChangedViewportList,
+) -> SnowError {
+    ffi_error(|| {
+        if config.is_null() || out_changed_viewports.is_null() {
+            return SnowError::InvalidArgument;
+        }
+        ffi_status(with_runtime_impl_mut(runtime, |state| {
+            let id = viewport_id(viewport)?;
+            let result = state
+                .runtime
+                .set_viewport_watermark_config_without_history(id, unsafe { (*config).into() })
+                .map_err(SnowError::from)?;
+            write_changed_viewports(out_changed_viewports, result.changed_viewports);
+            Ok(())
+        }))
+    })
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn snow_viewport_get_spotlight_config(
     runtime: SnowRuntime,
     viewport: SnowViewport,

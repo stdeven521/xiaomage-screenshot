@@ -1554,10 +1554,6 @@
             <translation>Accessibility</translation>
         </message>
         <message>
-            <source>Account</source>
-            <translation>Account</translation>
-        </message>
-        <message>
             <source>Accuracy first</source>
             <translation>Accuracy first</translation>
         </message>
@@ -2148,10 +2144,6 @@
         <message>
             <source>Choose the scheduling level for the interface and application workers. Changes take effect after restarting Snow Shot</source>
             <translation>Choose the scheduling level for the interface and application workers. Changes take effect after restarting Snow Shot</translation>
-        </message>
-        <message>
-            <source>Choose the server for built-in online services. Application updates are not affected</source>
-            <translation>Choose the server for built-in online services. Application updates are not affected</translation>
         </message>
         <message>
             <source>Choose the size of the screenshot, pinned, and recording toolbars</source>
@@ -2768,10 +2760,6 @@
         <message>
             <source>Enlarge short side (more detail)</source>
             <translation>Enlarge short side (more detail)</translation>
-        </message>
-        <message>
-            <source>Enter an HTTP or HTTPS address. Changes apply immediately. Clear to use the default server</source>
-            <translation>Enter an HTTP or HTTPS address. Changes apply immediately. Clear to use the default server</translation>
         </message>
         <message>
             <source>Enter or browse to a PNG or ICO file for dark theme; invalid files use the selected bundled icon</source>
@@ -3400,10 +3388,6 @@
         <message>
             <source>Medium V6</source>
             <translation>Medium V6</translation>
-        </message>
-        <message>
-            <source>Membership, credits and transactions</source>
-            <translation>Membership, credits and transactions</translation>
         </message>
         <message>
             <source>Memory optimization policy</source>
@@ -4390,10 +4374,6 @@
             <translation>Sequence number</translation>
         </message>
         <message>
-            <source>Server address</source>
-            <translation>Server address</translation>
-        </message>
-        <message>
             <source>Set how much Ctrl+mouse wheel changes pinned window opacity</source>
             <translation>Set how much Ctrl+mouse wheel changes pinned window opacity</translation>
         </message>
@@ -4700,10 +4680,6 @@
         <message>
             <source>Snow Shot</source>
             <translation>Snow Shot</translation>
-        </message>
-        <message>
-            <source>Snow Shot server</source>
-            <translation>Snow Shot server</translation>
         </message>
         <message>
             <source>Snowflake</source>

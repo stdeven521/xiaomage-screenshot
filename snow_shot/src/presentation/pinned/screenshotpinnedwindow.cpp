@@ -812,6 +812,7 @@ class ScreenshotPinnedCanvasWidget final : public SnowCanvasWidget {
                                  std::function<bool(QPaintEvent*)> animationPaint)
         : SnowCanvasWidget(runtime, parent), m_afterPaint(std::move(afterPaint)),
           m_afterResize(std::move(afterResize)), m_animationPaint(std::move(animationPaint)) {
+        setScreenshotCompatibilityEnabled(true);
 #ifdef Q_OS_MACOS
         setCommandKeyResolver(
             [](const QKeyEvent& event) { return snow_shot::shortcuts::commandKey(event); });

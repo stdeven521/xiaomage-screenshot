@@ -17,6 +17,8 @@ constexpr auto kSkipStartupUpdate = "--skip-startup-update";
 
 UpdateService::Options defaultUpdateServiceOptions() {
     UpdateService::Options options;
+    // Upstream releases would replace this personal build and its local-only settings.
+    options.enabled = false;
     options.applicationDirectory = QCoreApplication::applicationDirPath();
     options.root = QFileInfo(options.applicationDirectory).dir().absolutePath();
     const QString identity = QString::fromLatin1(

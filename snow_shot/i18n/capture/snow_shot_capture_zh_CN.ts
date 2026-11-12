@@ -28,6 +28,29 @@
         </message>
     </context>
     <context>
+        <name>ScreenshotCaptureModeToolbarWidget</name>
+        <message>
+            <source>Capture mode</source>
+            <translation>截图模式</translation>
+        </message>
+        <message>
+            <source>Move capture toolbar</source>
+            <translation>移动截图工具栏</translation>
+        </message>
+        <message>
+            <source>Record screen</source>
+            <translation>录屏</translation>
+        </message>
+        <message>
+            <source>Screenshot</source>
+            <translation>截图</translation>
+        </message>
+        <message>
+            <source>Scrolling screenshot</source>
+            <translation>长截图</translation>
+        </message>
+    </context>
+    <context>
         <name>ScreenshotController</name>
         <message>
             <source>Allow Snow Shot to access Finder in System Settings &gt; Privacy &amp; Security &gt; Automation, then try again</source>
@@ -485,6 +508,10 @@
         <message>
             <source>Selection presets</source>
             <translation>选区预设</translation>
+        </message>
+        <message>
+            <source>Shadow</source>
+            <translation>阴影</translation>
         </message>
         <message>
             <source>Shadow width</source>

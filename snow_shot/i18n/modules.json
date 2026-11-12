@@ -59,6 +59,7 @@
     "ScreenshotAutoFilterController",
     "ScreenshotQrController",
     "ScreenshotCaptureCoordinator",
+    "ScreenshotCaptureModeToolbarWidget",
     "ScreenshotController",
     "ScreenshotMcpServer",
     "ScreenshotOverlayWindow",

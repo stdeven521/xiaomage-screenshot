@@ -14,6 +14,7 @@
 
 #include "snow_shot/presentation/screenshottoolbarmainpanel.h"
 #include "screenshottoolpalettebuttons.h"
+#include "screenshottoolbarcompatibility.h"
 #include "screenshottoolpalettestylecomponents.h"
 #include "screenshottoolpalettestylecontrols.h"
 #include "screenshottoolpalettestylepresets.h"
@@ -488,6 +489,8 @@ QString actionToolShortcutId(const QString& itemId) {
     if (itemId == QStringLiteral("cancel")) {
         return QStringLiteral("cancel_screenshot");
     }
+    if (itemId == QStringLiteral("undo") || itemId == QStringLiteral("redo"))
+        return itemId;
     return {};
 }
 
@@ -850,6 +853,11 @@ void applyDrawingShortcutTooltip(QWidget* widget, const QString& source,
 
 std::optional<snow_shot::storage::ScreenshotToolbarLayout>
 initialToolbarLayout(const ScreenshotToolPalette::Options& options) {
+    if (options.screenshotCompatibility) {
+        return toolbar_layout::qqScreenshotLayoutForSettings(
+            options.toolbarLayout.value_or(snow_shot::storage::ScreenshotToolbarLayout{}),
+            snow_shot::storage::ScreenshotToolbarLayoutKind::DrawingTools);
+    }
     if (options.toolbarLayout.has_value()) {
         return toolbar_layout::normalizedLayout(*options.toolbarLayout);
     }
@@ -868,6 +876,13 @@ initialToolbarLayout(const ScreenshotToolPalette::Options& options) {
 
 snow_shot::storage::ScreenshotToolbarLayout
 initialActionToolsLayout(const ScreenshotToolPalette::Options& options) {
+    if (options.screenshotCompatibility && !options.showRecordingControls &&
+        options.actionToolsLayoutKind ==
+            snow_shot::storage::ScreenshotToolbarLayoutKind::ActionTools) {
+        return toolbar_layout::qqScreenshotLayoutForSettings(
+            options.actionToolsLayout.value_or(snow_shot::storage::ScreenshotToolbarLayout{}),
+            options.actionToolsLayoutKind);
+    }
     return toolbar_layout::normalizedLayout(
         options.actionToolsLayout.value_or(snow_shot::storage::ScreenshotToolbarLayout{}),
         options.showRecordingControls
@@ -1002,6 +1017,15 @@ ScreenshotToolPalette::ScreenshotToolPalette(const Options& options, QWidget* pa
       m_toolbarLayout(initialToolbarLayout(options)),
       m_actionToolsLayout(initialActionToolsLayout(options)),
       m_actionToolsLayoutExplicit(options.actionToolsLayout.has_value()) {
+    if (options.screenshotCompatibility) {
+        setProperty("snowShotQqScreenshotAppearance", true);
+        adqt::theme::ThemeOverride theme;
+        theme.scheme = adqt::theme::ThemeScheme::Dark;
+        theme.primary = QColor(0x67, 0x67, 0x67);
+        theme.error = QColor(0xff, 0x4a, 0x35);
+        theme.success = qqScreenshotToolbarSuccess();
+        adqt::theme::ThemeManager::instance().setScopeOverride(this, theme);
+    }
     m_tableRecognitionModelState.selection = screenshotDedicatedRecognitionModelId();
     m_latexRecognitionModelState.selection = screenshotDedicatedRecognitionModelId();
     const toolbar_settings::ScreenshotToolbarSettings settings;
@@ -1086,7 +1110,7 @@ ScreenshotToolPalette::ScreenshotToolPalette(const Options& options, QWidget* pa
                             : SnowCanvasStyleEditTarget::Creation}));
                 },
             },
-            m_styleDefaults, options.watermarkTemplateClock);
+            m_styleDefaults, options.watermarkTemplateClock, options.screenshotCompatibility);
     }
 
     {
@@ -4645,6 +4669,25 @@ void ScreenshotToolPalette::finishScrollingSelectionMove() {
 }
 
 bool ScreenshotToolPalette::eventFilter(QObject* watched, QEvent* event) {
+    if (m_options.screenshotCompatibility && event && event->type() == QEvent::MouseButtonPress) {
+        auto* button = qobject_cast<adqt::widgets::AdButton*>(watched);
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        if (button && button->isEnabled() && mouse->button() == Qt::LeftButton &&
+            mouse->position().x() >= button->width() - 10.0 * button->height() / 32.0) {
+            for (const auto& group : std::as_const(m_drawingToolGroups)) {
+                if (group.trigger == button && group.popover) {
+                    group.popover->show();
+                    return true;
+                }
+            }
+            for (const auto& group : std::as_const(m_actionToolGroups)) {
+                if (group.trigger == button && group.popover) {
+                    group.popover->show();
+                    return true;
+                }
+            }
+        }
+    }
     if (event && (event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonPress ||
                   event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride)) {
         const auto* widget = qobject_cast<QWidget*>(watched);
@@ -5750,6 +5793,12 @@ ScreenshotToolPalette::actionToolSourceButton(const QString& itemId) const {
     if (itemId == QStringLiteral("cancel")) {
         return m_cancelButton;
     }
+    if (itemId == QStringLiteral("undo")) {
+        return m_undoButton;
+    }
+    if (itemId == QStringLiteral("redo")) {
+        return m_redoButton;
+    }
     return nullptr;
 }
 
@@ -5862,6 +5911,10 @@ bool ScreenshotToolPalette::activateActionTool(const QString& itemId, bool toggl
         emit confirmRequested();
     } else if (itemId == QStringLiteral("cancel")) {
         emit cancelRequested();
+    } else if (itemId == QStringLiteral("undo")) {
+        emit undoRequested();
+    } else if (itemId == QStringLiteral("redo")) {
+        emit redoRequested();
     }
     return true;
 }
@@ -6022,8 +6075,11 @@ void ScreenshotToolPalette::refreshActionToolGroup(int groupIndex) {
     };
     applyActionToolShortcutTooltip(group.trigger, entryItemId);
     auto entryIcon = toolbar_layout::icon(entryDescriptor->icon);
-    if (entryItemId == QStringLiteral("confirm") ||
-        (entryItemId == QStringLiteral("copy") && !m_options.copyButtonWithNeutralIcon)) {
+    if (m_options.screenshotCompatibility && entryItemId == QStringLiteral("copy")) {
+        entryIcon = snow_shot::presentation::icons::withPrimaryColor(outlined_icons::Check(),
+                                                                     qqScreenshotToolbarSuccess());
+    } else if (entryItemId == QStringLiteral("confirm") ||
+               (entryItemId == QStringLiteral("copy") && !m_options.copyButtonWithNeutralIcon)) {
         entryIcon = snow_shot::presentation::icons::withPrimaryColor(
             entryIcon,
             snow_shot::presentation::styles::generateThemeColorScheme().map.colorPrimary);
@@ -6262,7 +6318,14 @@ void ScreenshotToolPalette::applyMainToolbarLayout(bool notify) {
         }
         const auto stack =
             toolbar_layout::stackPresentation(position, [this](const QString& itemId) {
-                return drawingItemButton(itemId) != nullptr;
+                // History commands may live in the action row. A source button
+                // must only occupy one slot when layouts from both editors meet.
+                const bool actionHistory =
+                    (itemId == QStringLiteral("undo") || itemId == QStringLiteral("redo")) &&
+                    std::any_of(m_actionToolsLayout.positions.cbegin(),
+                                m_actionToolsLayout.positions.cend(),
+                                [&itemId](const auto& items) { return items.contains(itemId); });
+                return drawingItemButton(itemId) != nullptr && !actionHistory;
             });
         const QStringList& availableItemIds = stack.itemIds;
         if (availableItemIds.isEmpty()) {
@@ -6432,7 +6495,7 @@ void ScreenshotToolPalette::applyMainToolbarLayout(bool notify) {
             addSeparator();
             actionSeparatorPending = false;
         }
-        if (!hasActionPositions && hasContent) {
+        if (!hasActionPositions && hasContent && !m_options.screenshotCompatibility) {
             addSeparator();
         }
         if (!cropToolsAdded && availableItemIds.contains(QStringLiteral("table-recognition"))) {
@@ -6711,6 +6774,12 @@ void ScreenshotToolPalette::updateHistoryActionAvailability() {
         if (m_drawingToolGroups.at(index).itemIds.contains(QStringLiteral("undo")) ||
             m_drawingToolGroups.at(index).itemIds.contains(QStringLiteral("redo"))) {
             refreshDrawingToolGroup(index);
+        }
+    }
+    for (int index = 0; index < m_actionToolGroups.size(); ++index) {
+        if (m_actionToolGroups.at(index).itemIds.contains(QStringLiteral("undo")) ||
+            m_actionToolGroups.at(index).itemIds.contains(QStringLiteral("redo"))) {
+            refreshActionToolGroup(index);
         }
     }
 }
@@ -7247,10 +7316,13 @@ void ScreenshotToolPalette::addMainActionButtons(const Options& options, QBoxLay
     }
 
     if ((options.actions & CopyAction) != 0) {
-        m_copyButton =
-            addActionButton("Copy to clipboard", options.copyButtonWithNeutralIcon
-                                                     ? outlined_icons::Copy()
-                                                     : primaryIcon(outlined_icons::Copy()));
+        m_copyButton = addActionButton(
+            "Copy to clipboard",
+            options.screenshotCompatibility
+                ? snow_shot::presentation::icons::withPrimaryColor(outlined_icons::Check(),
+                                                                   qqScreenshotToolbarSuccess())
+            : options.copyButtonWithNeutralIcon ? outlined_icons::Copy()
+                                                : primaryIcon(outlined_icons::Copy()));
         applyScreenshotShortcutTooltip(m_copyButton, QStringLiteral("Copy to clipboard"),
                                        QStringLiteral("copy_to_clipboard"));
         addButton(m_copyButton);

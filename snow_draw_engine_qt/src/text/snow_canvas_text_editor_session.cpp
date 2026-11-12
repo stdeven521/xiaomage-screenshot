@@ -155,6 +155,24 @@ SnowCanvasTextEditorSession::finish(const QFont& baseFont) {
     result.style = snow_canvas_text::textStyleFromSceneItem(m_previewItem);
     result.autoResize = m_previewAutoResize;
     result.styleChanged = m_styleChanged;
+    if (m_screenshotCompatibilityEnabled && !isDistanceValue() && m_arrowId.generation == 0 &&
+        m_bubbleId.generation == 0) {
+        // Measure every actual draft edit with the same anchor and wrapping constraints.
+        // The engine records these as ordinary document transactions, so later shape edits
+        // and redo retain their usual ordering and never synthesize character deletions.
+        const auto history = m_draft.committedEditStates();
+        const auto finalItem = m_previewItem;
+        for (const QString& text : history) {
+            m_previewItem = finalItem;
+            m_draft.begin(text);
+            updatePreviewFromState(baseFont);
+            const auto& item = m_previewItem;
+            result.historySteps.push_back(
+                {text,
+                 QPointF(item.center_x, item.center_y),
+                 {item.width, item.height, item.content_width, item.content_height}});
+        }
+    }
     resetState();
     return result;
 }
@@ -408,6 +426,13 @@ SnowCanvasTextEditorSession::handleKeyPress(QKeyEvent* event, const QFont& baseF
             result.command = EventCommand::Commit;
             return result;
         }
+    }
+    if (m_screenshotCompatibilityEnabled && !isDistanceValue() && m_arrowId.generation == 0 &&
+        m_bubbleId.generation == 0 &&
+        (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) &&
+        !event->modifiers().testFlag(Qt::ControlModifier)) {
+        result.handled = true;
+        return result;
     }
     const snow_canvas_text_editor_input::KeyResult commandResult =
         snow_canvas_text_editor_input::handleKeyPress(

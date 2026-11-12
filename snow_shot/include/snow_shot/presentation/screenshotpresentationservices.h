@@ -48,6 +48,8 @@ struct ScreenshotPresentationServicesContext {
     ScreenshotPresentationFrameScheduler::Backend frameSchedulerBackend =
         ScreenshotPresentationFrameScheduler::Backend::Automatic;
     std::function<void(const QPointF&)> presentSelectionDragColorPicker = {};
+    // Called before presentation can yield to another input event; nullptr ends the UI session.
+    std::function<void(ScreenshotOverlayWindow*)> presentCaptureModes = {};
 };
 
 class ScreenshotPresentationServices final {

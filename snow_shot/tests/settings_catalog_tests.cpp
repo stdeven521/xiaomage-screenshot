@@ -588,9 +588,9 @@ void builtInCatalogIsCompleteAndValid() {
             }) != screenshotInterface->items.cend(),
         "selection center guide color must appear immediately below cursor guide color");
 #ifdef Q_OS_MACOS
-    require(catalog.pages().size() == 18, "macOS includes Account and App Permissions");
+    require(catalog.pages().size() == 17, "macOS includes App Permissions without Account");
 #else
-    require(catalog.pages().size() == 17, "other platforms include Account and pin management");
+    require(catalog.pages().size() == 16, "other platforms include pin management without Account");
 #endif
 
     for (const auto& pageId :
@@ -770,13 +770,13 @@ void builtInCatalogIsCompleteAndValid() {
         }
     }
 #ifdef Q_OS_MACOS
-    require(sectionCount == 52, "macOS includes permissions and merged storage and desktop groups");
+    require(sectionCount == 51, "macOS includes permissions and merged storage and desktop groups");
 #elif defined(Q_OS_WIN)
     require(
-        sectionCount == 53,
+        sectionCount == 52,
         "Windows includes the context menu shortcut category with capture and recording groups");
 #else
-    require(sectionCount == 52,
+    require(sectionCount == 51,
             "catalog includes capture and recording groups with merged storage and desktop groups");
 #endif
     // Verify platform membership directly; shared features have their own binding and metadata
@@ -1716,36 +1716,37 @@ void builtInCatalogIsCompleteAndValid() {
             break;
         }
     }
-    require(settingsGroup != nullptr && settingsGroup->pages.size() >= 4 &&
+    require(settingsGroup != nullptr && settingsGroup->pages.size() >= 3 &&
                 settingsGroup->pages.at(0).pageId == QStringLiteral("general") &&
-                settingsGroup->pages.at(1).pageId == QStringLiteral("account") &&
-                settingsGroup->pages.at(2).pageId == QStringLiteral("general-appearance") &&
-                settingsGroup->pages.at(3).pageId == QStringLiteral("screenshots"),
-            "Account follows General, with Appearance and Screenshots after it");
+                settingsGroup->pages.at(1).pageId == QStringLiteral("general-appearance") &&
+                settingsGroup->pages.at(2).pageId == QStringLiteral("screenshots") &&
+                catalog.page(QStringLiteral("account")) == nullptr &&
+                catalog.pageForRoute(QStringLiteral("/settings/account")) == nullptr,
+            "Personal settings omit accounts and keep General, Appearance, and Screenshots first");
 #ifdef Q_OS_MACOS
-    constexpr int expectedSettingsPages = 12;
+    constexpr int expectedSettingsPages = 11;
     require(settingsGroup->pages.constLast().pageId == QStringLiteral("app-permissions"),
             "macOS App Permissions follows System settings");
 #else
-    constexpr int expectedSettingsPages = 11;
+    constexpr int expectedSettingsPages = 10;
 #endif
     require(settingsGroup->title.translated() == QStringLiteral("Settings") &&
                 settingsGroup->pages.size() == expectedSettingsPages &&
-                settingsGroup->pages.at(4).pageId == QStringLiteral("pinned-windows") &&
-                settingsGroup->pages.at(5).pageId == QStringLiteral("screen-recording") &&
-                settingsGroup->pages.at(6).pageId ==
+                settingsGroup->pages.at(3).pageId == QStringLiteral("pinned-windows") &&
+                settingsGroup->pages.at(4).pageId == QStringLiteral("screen-recording") &&
+                settingsGroup->pages.at(5).pageId ==
                     QStringLiteral("text-recognition-translation") &&
-                settingsGroup->pages.at(7).pageId == QStringLiteral("shortcuts-mouse") &&
-                settingsGroup->pages.at(8).pageId == QStringLiteral("desktop-tools") &&
-                settingsGroup->pages.at(9).pageId == QStringLiteral("files-history") &&
-                settingsGroup->pages.at(10).pageId == QStringLiteral("connections-services"),
+                settingsGroup->pages.at(6).pageId == QStringLiteral("shortcuts-mouse") &&
+                settingsGroup->pages.at(7).pageId == QStringLiteral("desktop-tools") &&
+                settingsGroup->pages.at(8).pageId == QStringLiteral("files-history") &&
+                settingsGroup->pages.at(9).pageId == QStringLiteral("connections-services"),
             "Settings navigation must group feature controls and shared preferences predictably");
     const auto* applicationShortcutsPage = catalog.page(QStringLiteral("shortcuts-mouse"));
     require(applicationShortcutsPage != nullptr &&
                 applicationShortcutsPage->route == QStringLiteral("/settings/shortcuts-mouse") &&
                 applicationShortcutsPage->title.translated() ==
                     QStringLiteral("Application shortcuts") &&
-                settingsGroup->pages.at(7).id == QStringLiteral("nav.shortcuts-mouse"),
+                settingsGroup->pages.at(6).id == QStringLiteral("nav.shortcuts-mouse"),
             "Application shortcuts must expose the renamed title, route, and navigation");
     const auto* drawingShortcuts =
         catalog.section(QStringLiteral("shortcuts-mouse"), QStringLiteral("drawing-shortcuts"));

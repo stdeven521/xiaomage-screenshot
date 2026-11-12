@@ -22,6 +22,7 @@ qint64 paintRegionArea(const QRegion& region) {
 ScreenshotOverlayCanvasWidget::ScreenshotOverlayCanvasWidget(SnowCanvasRuntime& runtime,
                                                              QWidget* parent)
     : SnowCanvasWidget(runtime, parent) {
+    setScreenshotCompatibilityEnabled(true);
     snow_shot::presentation::bindCanvasTextEditingPreferences(*this);
 #ifdef Q_OS_MACOS
     setCommandKeyResolver(

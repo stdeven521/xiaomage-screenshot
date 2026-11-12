@@ -55,7 +55,7 @@ TranslationService::TranslationService(SnowShotApiClient& client,
             [this](const QString& key, const QJsonValue&) {
                 if (m_client == nullptr || m_settings == nullptr)
                     return;
-                if (key == serverKey) {
+                if (key == serverKey && !m_client->baseUrl().isEmpty()) {
                     static_cast<void>(m_client->setBaseUrl(SnowShotApiClient::configuredBaseUrl(
                         m_settings->value(serverKey).toString())));
                 } else if (key == customKey) {
@@ -90,7 +90,7 @@ TranslationService::TranslationService(SnowShotApiClient& client,
         emit unavailable();
     });
     syncPreferences(ChangeReason::Catalog);
-    publishModels(false);
+    publishModels(client.baseUrl().isEmpty());
 }
 
 TranslationService::~TranslationService() {
@@ -172,7 +172,7 @@ void TranslationService::publishModels(bool resolveSelection) {
         m_settings != nullptr ? m_settings->value(modelKey).toString() : m_preferences.modelId;
     const int index = translationModelIndex(m_models, selectedModel);
     const bool unresolvedLegacy =
-        snowShotLegacyAiModelId(selectedModel) &&
+        !m_client->baseUrl().isEmpty() && snowShotLegacyAiModelId(selectedModel) &&
         snowShotResolvedBuiltInModelId(m_models, selectedModel) == selectedModel &&
         std::none_of(m_models.cbegin(), m_models.cend(),
                      [&selectedModel](const auto& model) { return model.id == selectedModel; });
@@ -201,6 +201,10 @@ void TranslationService::refreshModels(bool force) {
         return;
     m_catalogAttempted = true;
     m_catalogError.clear();
+    if (m_client->baseUrl().isEmpty()) {
+        publishModels(true);
+        return;
+    }
     m_modelsToken = m_client->ensureChatModels(
         m_locale.name(), this,
         [this](SnowShotChatModelsResult result) {

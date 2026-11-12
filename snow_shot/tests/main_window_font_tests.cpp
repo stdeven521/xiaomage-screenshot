@@ -1,5 +1,6 @@
 #include "window_close_shortcut_test_support.h"
 #include "translation_test_support.h"
+#include "snow_shot/app/edition.h"
 #include "snow_shot/network/snowshotapiclient.h"
 #include "snow_shot/presentation/components/actionrow.h"
 #include "snow_shot/presentation/components/contentcardwidget.h"
@@ -7,8 +8,6 @@
 #include "snow_shot/presentation/components/pinnedwindowmanagementpagewidget.h"
 #include "snow_shot/presentation/components/sidebarwidget.h"
 #include "snow_shot/presentation/components/titlebarwidget.h"
-#include "snow_shot/presentation/components/icons/snowshoticons.h"
-#include "icon_renderer.h"
 #include <QPainter>
 #include "snow_shot/presentation/globalshortcutmanager.h"
 #include "snow_shot/presentation/mainwindow.h"
@@ -95,6 +94,10 @@ void customTitleBarUsesPlatformWindowControls() {
     titleBar.resize(host.width(), titleBar.height());
     host.show();
     flushEvents();
+    require(host.windowTitle() == snow_shot::app::edition::productName() &&
+                host.accessibleName() == snow_shot::app::edition::productName() &&
+                titleBar.accessibleName() == snow_shot::app::edition::productName(),
+            "the title bar and native window title must use the localized product name");
 
     auto* closeButton = titleBar.findChild<QAbstractButton*>(QStringLiteral("closeWindowButton"));
     auto* minimizeButton =
@@ -115,23 +118,7 @@ void customTitleBarUsesPlatformWindowControls() {
 #ifdef Q_OS_WIN
     require(titleBar.height() == 32, "Windows caption must use the standard 32 DIP height");
     auto* icon = titleBar.findChild<QLabel*>(QStringLiteral("windowSystemMenuIcon"));
-    require(icon != nullptr && icon->geometry() == QRect(16, 8, 16, 16),
-            "the 16 DIP app icon must have the standard leading inset and vertical alignment");
-    require(!icon->pixmap().isNull(), "the caption must render the actual application icon");
-    const QImage captionIcon = icon->pixmap().toImage();
-    bool paintsWhiteBackdrop = false;
-    for (int y = 0; y < captionIcon.height() && !paintsWhiteBackdrop; ++y) {
-        for (int x = 0; x < captionIcon.width(); ++x) {
-            const QColor pixel = captionIcon.pixelColor(x, y);
-            if (pixel.alpha() >= 250 && pixel.red() >= 240 && pixel.green() >= 240 &&
-                pixel.blue() >= 240) {
-                paintsWhiteBackdrop = true;
-                break;
-            }
-        }
-    }
-    require(!paintsWhiteBackdrop,
-            "the caption icon must drop the application icon's white background");
+    require(icon == nullptr, "the personalized main title bar must not display the upstream logo");
     for (const auto* button : {minimizeButton, maximizeButton, closeButton}) {
         require(button->size() == QSize(46, 32) && button->y() == 0,
                 "caption buttons must provide full-height 46 DIP targets");
@@ -188,34 +175,14 @@ void customTitleBarUsesPlatformWindowControls() {
         const auto normal = titleBar.grab().toImage();
         const qreal scale = normal.devicePixelRatio();
         const QColor background = titleBar.palette().color(QPalette::Window);
-        adqt::icons::IconRenderRequest wordmarkRequest;
-        const int logoHeight = std::clamp(scheme.metricAlias.fontSizeSM, 10, 14);
-        wordmarkRequest.logicalSize = QSize(qRound(logoHeight * 95.0 / 17.0), logoHeight);
-        wordmarkRequest.devicePixelRatio = scale;
-        const auto wordmark = adqt::icons::renderIconPixmap(
-            snow_shot::presentation::icons::custom::brand::SnowShotLogo(
-                adqt::icons::IconColors::primary(ink)),
-            wordmarkRequest);
-        QImage expected(wordmark.size(), QImage::Format_ARGB32_Premultiplied);
-        expected.setDevicePixelRatio(scale);
-        expected.fill(background);
-        {
-            QPainter painter(&expected);
-            painter.drawPixmap(0, 0, wordmark);
-        }
-        const QRect wordmarkRect(qRound(48 * scale),
-                                 qRound((titleBar.height() * scale - wordmark.height()) / 2.0),
-                                 wordmark.width(), wordmark.height());
-        require(normal.copy(wordmarkRect).convertToFormat(expected.format()) == expected,
-                "the title must preserve the original SVG wordmark artwork exactly");
         bool hasCaptionText = false;
         for (int y = 8; y < 24; ++y) {
-            for (int x = 48; x < 110; ++x) {
+            for (int x = 16; x < minimizeButton->x() - 16; ++x) {
                 hasCaptionText |=
                     normal.pixelColor(qRound(x * scale), qRound(y * scale)) != background;
             }
         }
-        require(hasCaptionText, "the original wordmark must be rendered next to the left icon");
+        require(hasCaptionText, "the product name must be visible in both caption themes");
         const QString renderDir = qEnvironmentVariable("SNOW_TITLEBAR_RENDER_DIR");
         if (!renderDir.isEmpty()) {
             QDir().mkpath(renderDir);

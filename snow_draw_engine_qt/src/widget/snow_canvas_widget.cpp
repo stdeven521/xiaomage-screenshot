@@ -387,6 +387,10 @@ struct SnowCanvasWidget::Impl : public snow_canvas_runtime::Client {
           inputHandler(widget, cursorController), textInteraction(widget, cursorController) {}
 
     bool stepFontSize(int direction);
+    void setScreenshotCompatibilityEnabled(bool enabled) {
+        screenshotCompatibilityEnabled = enabled;
+        textInteraction.session().setScreenshotCompatibilityEnabled(enabled);
+    }
     bool applyStyleEdit(const SnowCanvasStyleEdit& edit);
     bool setSharedCreationColor(const std::optional<QColor>& color);
     bool rememberDraftStyle(const SnowCanvasStyleEdit& edit);
@@ -573,6 +577,7 @@ struct SnowCanvasWidget::Impl : public snow_canvas_runtime::Client {
     bool stepSerialNumberFontSize(bool increase);
     bool stepTextFontSize(bool increase);
     CommandKeyResolver commandKeyResolver;
+    bool screenshotCompatibilityEnabled = false;
     bool deleteTextAfterCursor = false;
     bool handleKeyPress(QKeyEvent* event);
     bool handleKeyRelease(QKeyEvent* event);
@@ -1386,7 +1391,8 @@ bool SnowCanvasWidget::Impl::setCanvasWatermarkConfig(const SnowCanvasWatermarkC
     const SnowWatermarkConfig engineConfig = snow_canvas_types::toEngineWatermarkConfig(config);
     const bool applied = applyMutation([&]() {
         return snow_canvas_commands::setWatermarkConfig(
-            runtimeBinding.engine(), runtimeBinding.viewportHandle(), engineConfig);
+            runtimeBinding.engine(), runtimeBinding.viewportHandle(), engineConfig,
+            !screenshotCompatibilityEnabled);
     });
     if (applied && !previousPreviewRegion.isEmpty()) {
         widget.update(previousPreviewRegion);
@@ -4330,6 +4336,10 @@ bool SnowCanvasWidget::Impl::handleKeyPress(QKeyEvent* event) {
 
 void SnowCanvasWidget::setCommandKeyResolver(CommandKeyResolver resolver) {
     m_impl->commandKeyResolver = std::move(resolver);
+}
+
+void SnowCanvasWidget::setScreenshotCompatibilityEnabled(bool enabled) {
+    m_impl->setScreenshotCompatibilityEnabled(enabled);
 }
 
 bool SnowCanvasWidget::deleteTextAfterCursor() const {

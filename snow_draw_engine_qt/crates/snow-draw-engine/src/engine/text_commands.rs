@@ -5,8 +5,8 @@ use snow_draw_engine_document::{
     resolve_text_layout_rect,
 };
 use snow_draw_engine_editor::{
-    ActiveTextDraftPresentation, SerialNumberStyle, TextDraftCommit, TextLayoutOverride,
-    TextResizeMeasurementRequest, TextStyle,
+    ActiveTextDraftPresentation, EditorCommand, SerialNumberStyle, TextCommitTarget,
+    TextDraftCommit, TextLayoutOverride, TextResizeMeasurementRequest, TextStyle,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -416,6 +416,78 @@ impl Engine {
         } else {
             self.refresh_after_session_mutation(before)
         }
+    }
+
+    /// Commit the active undo branch of an ordinary text draft as separate history
+    /// entries. Hosts supply measured geometry for every real edit (not preedit).
+    /// Preflight the entire branch before changing the live document or history.
+    pub fn commit_text_history_with_viewport_changes(
+        &mut self,
+        source_viewport_id: ViewportId,
+        drafts: Vec<TextDraftCommit>,
+    ) -> Result<MutationResult, ErrorCode> {
+        self.ensure_viewport(source_viewport_id)?;
+        let Some(first) = drafts.first() else {
+            return Err(ErrorCode::InvalidArgument);
+        };
+        let mut existing = first.existing_id();
+        let select_created = existing.is_none();
+        if matches!(
+            first.target,
+            TextCommitTarget::NewArrow(_) | TextCommitTarget::NewSpeechBubble(_)
+        ) || existing.is_some_and(|id| {
+            self.model.arrow_id_for_text(id).is_some()
+                || self.model.speech_bubble_id_for_text(id).is_some()
+        }) {
+            return Err(ErrorCode::InvalidArgument);
+        }
+        let mut model = self.model.clone();
+        let mut editor = self.editor.clone();
+        let mut commands = Vec::with_capacity(drafts.len());
+        for mut draft in drafts {
+            draft.target = existing.map_or(TextCommitTarget::New, TextCommitTarget::Existing);
+            let next = if draft.text_is_empty() {
+                None
+            } else {
+                Some(existing.unwrap_or_else(|| model.peek_next_element_id()))
+            };
+            if let Some(command) = editor.commit_text_draft(&model, draft)? {
+                let EditorCommand::ApplyTransaction(command) = command else {
+                    return Err(ErrorCode::InvalidArgument);
+                };
+                let command_editor = editor.clone();
+                let snapshot = editor.capture_document_sync_snapshot(&model);
+                model.apply_transaction(command.transaction.clone())?;
+                if let Some(id) = command.created_selection_target {
+                    editor.select_created_element(&model, id);
+                }
+                editor.sync_after_document_change(&model, &snapshot);
+                commands.push((command, command_editor));
+            }
+            existing = next;
+        }
+        if select_created && let Some((command, _)) = commands.last_mut() {
+            command.created_selection_target = existing;
+        }
+        let before = self.editor.snapshot();
+        let mut result = MutationResult::default();
+        if commands.is_empty() {
+            self.editor = editor;
+        }
+        for (command, command_editor) in commands {
+            self.editor = command_editor;
+            result.changed_viewports.extend(
+                self.commit_transaction(source_viewport_id, command)?
+                    .changed_viewports,
+            );
+        }
+        result.changed_viewports.extend(
+            self.refresh_after_session_mutation(before)?
+                .changed_viewports,
+        );
+        result.changed_viewports.sort_unstable();
+        result.changed_viewports.dedup();
+        Ok(result)
     }
 
     pub fn selected_text_count(&self) -> usize {

@@ -692,14 +692,14 @@ QByteArray SnowShotApiClient::encodeWebp(const QImage& image) {
 }
 
 QString SnowShotApiClient::formatFailure(int httpStatus, const QString& failureCode,
-                                         const QString& description) {
-    if (failureCode == u"insufficient_credits")
+                                         const QString& description, bool accountService) {
+    if (accountService && failureCode == u"insufficient_credits")
         return tr("Your available free allowance and credits cannot cover this request. "
                   "Purchase credits from Account to continue");
-    if (failureCode == u"outstanding_balance")
+    if (accountService && failureCode == u"outstanding_balance")
         return tr("Paid calls are paused because your account has an outstanding balance. "
                   "Your free allowance remains available");
-    if (failureCode == u"funds_temporarily_reserved")
+    if (accountService && failureCode == u"funds_temporarily_reserved")
         return tr("Your credits are reserved by other calls that are still running. "
                   "Wait for them to finish and try again");
     const QString conciseDescription = description.simplified();
@@ -1946,9 +1946,10 @@ void SnowShotApiClient::completeChatStream(RequestToken token) {
         result.code = problem.value(QStringLiteral("code")).toVariant().toString();
         if (retryBuiltInTranslation(token, problem))
             return;
-        result.error = formatFailure(result.httpStatus, result.code,
-                                     problemDetail(problem).isEmpty() ? reply->errorString()
-                                                                      : problemDetail(problem));
+        result.error = formatFailure(
+            result.httpStatus, result.code,
+            problemDetail(problem).isEmpty() ? reply->errorString() : problemDetail(problem),
+            !current->custom && !current->freeTranslation && !current->textTranslation);
     } else if (current->streamFailed) {
         result.error = tr("Invalid translation stream response");
     } else if (!current->streamDone) {

@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <utility>
 
 class ScreenshotColorPickerWindow;
 class ScreenshotDisplaySession;
@@ -43,6 +44,16 @@ class ScreenshotOverlayCoordinator final : public ScreenshotOverlayExclusionPort
 
     void setToolbarCommandSinks(ScreenshotToolbarCommandSink& toolbarCommands,
                                 ScreenshotSelectionToolbarCommandSink& selectionToolbarCommands);
+    void setCaptureModeHandler(std::function<void(ScreenshotCaptureToolbarMode)> handler) {
+        m_uiHost.setCaptureModeHandler(std::move(handler));
+    }
+    void updateCaptureModeToolbar(ScreenshotOverlayWindow* overlay,
+                                  ScreenshotCaptureToolbarMode mode, bool enabled) {
+        m_uiHost.updateCaptureModeToolbar(overlay, mode, enabled);
+    }
+    void hideCaptureModeToolbar() {
+        m_uiHost.hideCaptureModeToolbar();
+    }
 
     void prewarmDisplayPool(ScreenshotDisplaySession& displaySession, int displayCount);
     void clearOverlayCanvases(const ScreenshotDisplaySession& displaySession) const;

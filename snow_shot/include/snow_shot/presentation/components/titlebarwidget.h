@@ -6,7 +6,6 @@
 
 class QAbstractButton;
 class QEvent;
-class QLabel;
 class QMouseEvent;
 class QPaintEvent;
 class QWidget;
@@ -30,7 +29,6 @@ class TitleBarWidget : public QFrame {
     QAbstractButton* closeButton() const;
 
   protected:
-    bool event(QEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void changeEvent(QEvent* event) override;
@@ -43,10 +41,9 @@ class TitleBarWidget : public QFrame {
     QAbstractButton* m_minimizeButton = nullptr;
     QAbstractButton* m_maximizeButton = nullptr;
     QAbstractButton* m_closeButton = nullptr;
-    QLabel* m_applicationIcon = nullptr;
     bool m_maximized = false;
-    int m_logoHeight = 17;
-    QColor m_logoColor = QColor(Qt::black);
+    int m_titleFontSize = 12;
+    QColor m_titleColor = QColor(Qt::black);
     QColor m_surfaceColor;
     qreal m_skinMaskOpacity = 1.0;
 };

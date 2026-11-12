@@ -94,6 +94,19 @@ const QString& SnowCanvasTextDraft::text() const {
     return m_text;
 }
 
+std::vector<QString> SnowCanvasTextDraft::committedEditStates() const {
+    std::vector<QString> states;
+    if (m_undoStack.empty()) {
+        return states;
+    }
+    states.reserve(m_undoStack.size());
+    for (std::size_t i = 1; i < m_undoStack.size(); ++i) {
+        states.push_back(m_undoStack[i].text);
+    }
+    states.push_back(m_text);
+    return states;
+}
+
 QString SnowCanvasTextDraft::displayText() const {
     if (m_preeditText.isEmpty()) {
         return m_text;

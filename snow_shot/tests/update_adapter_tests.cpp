@@ -390,6 +390,52 @@ int main(int argc, char** argv) {
     };
 
     {
+        auto personalOptions = options(QStringLiteral("ready"));
+        const QString cache = personalOptions.cacheDirectory;
+        personalOptions.enabled = false;
+        personalOptions.startupCheckDelay = std::chrono::milliseconds(0);
+        UpdateService service(std::move(personalOptions));
+        int completions = 0;
+        bool restart = false;
+        bool handoff = false;
+        QObject::connect(&service, &UpdateService::operationFinished, &app,
+                         [&](const QString&, const QString& outcome) {
+                             require(outcome == u"unsupported",
+                                     "personal distribution rejects upstream operations");
+                             ++completions;
+                         });
+        QObject::connect(&service, &UpdateService::restartRequested, &app, [&] { restart = true; });
+        service.setHandoffApproval(&app, [&] {
+            handoff = true;
+            return true;
+        });
+        for (const QString& mode : {QStringLiteral("manual"), QStringLiteral("check"),
+                                    QStringLiteral("download"), QStringLiteral("next_launch")}) {
+            service.setMode(mode);
+            service.start();
+            service.check();
+            service.check(false);
+            service.download();
+            service.beginApply();
+            service.applyAtStartup();
+            service.requestRestart();
+            service.cancel();
+            QCoreApplication::processEvents();
+        }
+        const auto capabilities = service.capabilities();
+        require(!capabilities.check && !capabilities.download && !capabilities.install,
+                "personal distribution has no upstream update capabilities");
+        for (auto* timer : service.findChildren<QTimer*>())
+            require(!timer->isActive(), "disabled update service arms no background timers");
+        require(!service.managedByStore() && !service.busy() && !service.handoffPending() &&
+                    service.status().state == UpdateState::Unavailable && completions == 20 &&
+                    !restart && !handoff && !QFileInfo::exists(cache),
+                "saved modes and explicit operations never launch the available upstream helper");
+    }
+    if (app.arguments().contains(QStringLiteral("--personal-update-policy-only")))
+        return 0;
+
+    {
         auto storeOptions = options(QStringLiteral("store-managed"));
         const QString cache = storeOptions.cacheDirectory;
         storeOptions.storeManaged = true;

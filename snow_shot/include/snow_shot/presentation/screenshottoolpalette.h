@@ -229,6 +229,8 @@ class ScreenshotToolPalette final : public QWidget,
     Q_DECLARE_FLAGS(Actions, Action)
 
     struct Options {
+        // Use the compact controls observed in the QQ screenshot workflow.
+        bool screenshotCompatibility = false;
         // Keep the parent surface behind the margins when embedded in an opaque window.
         bool preserveParentBackground = false;
         bool showDragHandle = false;

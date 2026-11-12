@@ -24,12 +24,12 @@
             <translation>关于 %1</translation>
         </message>
         <message>
-            <source>About Snow Shot</source>
-            <translation>关于 Snow Shot</translation>
-        </message>
-        <message>
             <source>Automatic updates are unavailable for this copy</source>
             <translation>此副本无法使用自动更新</translation>
+        </message>
+        <message>
+            <source>Based on Snow Shot</source>
+            <translation>基于 Snow Shot 开发</translation>
         </message>
         <message>
             <source>Built for daily work, and growing with the community</source>
@@ -94,14 +94,6 @@ so every moment on screen can be expressed clearly and shared easily</source>
             <translation>当前版本：%1</translation>
         </message>
         <message>
-            <source>Discover more features and ways to use it</source>
-            <translation>发现更多功能与使用方式</translation>
-        </message>
-        <message>
-            <source>Discussion and support · group no. %1</source>
-            <translation>交流与答疑 · 群号 %1</translation>
-        </message>
-        <message>
             <source>Download from GitHub</source>
             <translation>从 GitHub 下载</translation>
         </message>
@@ -130,10 +122,6 @@ so every moment on screen can be expressed clearly and shared easily</source>
             <translation>优雅截图</translation>
         </message>
         <message>
-            <source>Feedback and suggestions</source>
-            <translation>反馈与建议</translation>
-        </message>
-        <message>
             <source>Free and open-source software. Distributed without any warranty</source>
             <translation>自由开源软件，不提供任何担保</translation>
         </message>
@@ -146,20 +134,8 @@ so every moment on screen can be expressed clearly and shared easily</source>
             <translation>GNU 通用公共许可证 v3.0 或更高版本</translation>
         </message>
         <message>
-            <source>GitHub</source>
-            <translation>GitHub</translation>
-        </message>
-        <message>
             <source>Make every moment clear</source>
             <translation>每一刻，都能清晰表达</translation>
-        </message>
-        <message>
-            <source>Make the next experience better</source>
-            <translation>让下一次体验更好</translation>
-        </message>
-        <message>
-            <source>Official website</source>
-            <translation>官方网站</translation>
         </message>
         <message>
             <source>Open Microsoft Store</source>
@@ -180,14 +156,6 @@ so every moment on screen can be expressed clearly and shared easily</source>
         <message>
             <source>Privacy policy</source>
             <translation>隐私政策</translation>
-        </message>
-        <message>
-            <source>QQ group 3</source>
-            <translation>QQ 交流群 3</translation>
-        </message>
-        <message>
-            <source>QQ group 4</source>
-            <translation>QQ 交流群 4</translation>
         </message>
         <message>
             <source>Ready to install %1</source>
@@ -220,10 +188,6 @@ so every moment on screen can be expressed clearly and shared easily</source>
         <message>
             <source>Snow Shot logo</source>
             <translation>Snow Shot 标志</translation>
-        </message>
-        <message>
-            <source>Snow Shot · make expression clearer</source>
-            <translation>Snow Shot · 让表达更清晰</translation>
         </message>
         <message>
             <source>Text recognition</source>
@@ -260,10 +224,6 @@ so every moment on screen can be expressed clearly and shared easily</source>
         <message>
             <source>Verifying update…</source>
             <translation>正在验证更新…</translation>
-        </message>
-        <message>
-            <source>View the source and improve it together</source>
-            <translation>查看源码，一起改进</translation>
         </message>
         <message>
             <source>You are up to date</source>
@@ -425,12 +385,12 @@ so every moment on screen can be expressed clearly and shared easily</source>
     <context>
         <name>EditionMetadata</name>
         <message>
-            <source>Snow Shot</source>
-            <translation>Snow Shot</translation>
-        </message>
-        <message>
             <source>Snow Shot Mini</source>
             <translation>Snow Shot Mini</translation>
+        </message>
+        <message>
+            <source>Xiaomage's Screenshot Tool</source>
+            <translation>小马哥专用截图工具</translation>
         </message>
     </context>
     <context>

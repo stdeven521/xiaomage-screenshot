@@ -24,12 +24,12 @@
             <translation>About %1</translation>
         </message>
         <message>
-            <source>About Snow Shot</source>
-            <translation>About Snow Shot</translation>
-        </message>
-        <message>
             <source>Automatic updates are unavailable for this copy</source>
             <translation>Automatic updates are unavailable for this copy</translation>
+        </message>
+        <message>
+            <source>Based on Snow Shot</source>
+            <translation>Based on Snow Shot</translation>
         </message>
         <message>
             <source>Built for daily work, and growing with the community</source>
@@ -94,14 +94,6 @@ so every moment on screen can be expressed clearly and shared easily</translatio
             <translation>Current version: %1</translation>
         </message>
         <message>
-            <source>Discover more features and ways to use it</source>
-            <translation>Discover more features and ways to use it</translation>
-        </message>
-        <message>
-            <source>Discussion and support · group no. %1</source>
-            <translation>Discussion and support · group no. %1</translation>
-        </message>
-        <message>
             <source>Download from GitHub</source>
             <translation>Download from GitHub</translation>
         </message>
@@ -130,10 +122,6 @@ so every moment on screen can be expressed clearly and shared easily</translatio
             <translation>Elegant screenshots</translation>
         </message>
         <message>
-            <source>Feedback and suggestions</source>
-            <translation>Feedback and suggestions</translation>
-        </message>
-        <message>
             <source>Free and open-source software. Distributed without any warranty</source>
             <translation>Free and open-source software. Distributed without any warranty</translation>
         </message>
@@ -146,20 +134,8 @@ so every moment on screen can be expressed clearly and shared easily</translatio
             <translation>GNU General Public License v3.0 or later</translation>
         </message>
         <message>
-            <source>GitHub</source>
-            <translation>GitHub</translation>
-        </message>
-        <message>
             <source>Make every moment clear</source>
             <translation>Make every moment clear</translation>
-        </message>
-        <message>
-            <source>Make the next experience better</source>
-            <translation>Make the next experience better</translation>
-        </message>
-        <message>
-            <source>Official website</source>
-            <translation>Official website</translation>
         </message>
         <message>
             <source>Open Microsoft Store</source>
@@ -180,14 +156,6 @@ so every moment on screen can be expressed clearly and shared easily</translatio
         <message>
             <source>Privacy policy</source>
             <translation>Privacy policy</translation>
-        </message>
-        <message>
-            <source>QQ group 3</source>
-            <translation>QQ group 3</translation>
-        </message>
-        <message>
-            <source>QQ group 4</source>
-            <translation>QQ group 4</translation>
         </message>
         <message>
             <source>Ready to install %1</source>
@@ -220,10 +188,6 @@ so every moment on screen can be expressed clearly and shared easily</translatio
         <message>
             <source>Snow Shot logo</source>
             <translation>Snow Shot logo</translation>
-        </message>
-        <message>
-            <source>Snow Shot · make expression clearer</source>
-            <translation>Snow Shot · make expression clearer</translation>
         </message>
         <message>
             <source>Text recognition</source>
@@ -260,10 +224,6 @@ so every moment on screen can be expressed clearly and shared easily</translatio
         <message>
             <source>Verifying update…</source>
             <translation>Verifying update…</translation>
-        </message>
-        <message>
-            <source>View the source and improve it together</source>
-            <translation>View the source and improve it together</translation>
         </message>
         <message>
             <source>You are up to date</source>
@@ -425,12 +385,12 @@ so every moment on screen can be expressed clearly and shared easily</translatio
     <context>
         <name>EditionMetadata</name>
         <message>
-            <source>Snow Shot</source>
-            <translation>Snow Shot</translation>
-        </message>
-        <message>
             <source>Snow Shot Mini</source>
             <translation>Snow Shot Mini</translation>
+        </message>
+        <message>
+            <source>Xiaomage's Screenshot Tool</source>
+            <translation>Xiaomage's Screenshot Tool</translation>
         </message>
     </context>
     <context>

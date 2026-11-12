@@ -14,6 +14,7 @@
 #include "snow_draw_engine.h"
 
 #include <optional>
+#include <vector>
 
 class QFont;
 class QInputMethodEvent;
@@ -23,7 +24,13 @@ class QPainter;
 class SnowCanvasTextEditorSession final {
   public:
     struct FinishedEdit {
+        struct HistoryStep {
+            QString text;
+            QPointF canvasCenter;
+            SnowTextLayoutSize measuredLayout;
+        };
         QString text;
+        std::vector<HistoryStep> historySteps;
         QPointF canvasCenter;
         SnowElementId elementId{};
         SnowElementId arrowId{};
@@ -59,6 +66,9 @@ class SnowCanvasTextEditorSession final {
                const QFont& baseFont, const SnowTextStyle* newTextStyle = nullptr,
                const QString* completeText = nullptr);
     void beginDistanceValue(const QFont& baseFont);
+    void setScreenshotCompatibilityEnabled(bool enabled) {
+        m_screenshotCompatibilityEnabled = enabled;
+    }
     bool isDistanceValue() const {
         return !m_distanceSuffix.isEmpty();
     }
@@ -118,6 +128,7 @@ class SnowCanvasTextEditorSession final {
                              const SceneDisplayInfo& sceneInfo, bool caretVisible = true) const;
 
   private:
+    bool m_screenshotCompatibilityEnabled = false;
     SnowCanvasSceneItem editableItem(const QFont& baseFont) const;
     void resetState();
     void updatePreviewLayout(const QFont& baseFont, bool forceLayout);

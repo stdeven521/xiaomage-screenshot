@@ -281,6 +281,10 @@ struct ScreenshotController::Impl final : public ScreenshotToolbarCommandSink,
     void handleCapturePresented();
     void invalidateDelayedCapture();
     void resetPendingCaptureRequest();
+    [[nodiscard]] std::optional<ScreenshotCaptureToolbarMode> pendingCaptureToolbarMode() const;
+    [[nodiscard]] bool canChangeCaptureToolbarMode() const;
+    void setCaptureToolbarMode(ScreenshotCaptureToolbarMode mode);
+    void updateCaptureModeToolbar(ScreenshotOverlayWindow* overlay);
     [[nodiscard]] bool beginCapture(
         PendingSelectionAction action = PendingSelectionAction::None,
         ScreenshotCaptureWorkflow::StartMode mode = ScreenshotCaptureWorkflow::StartMode::Normal);
@@ -599,6 +603,7 @@ struct ScreenshotController::Impl final : public ScreenshotToolbarCommandSink,
     void adjustSelectionFromToolbar(int minDx, int minDy, int maxDx, int maxDy) override;
     void setSelectionCornerRadiusFromToolbar(int radius) override;
     void setSelectionEffectWidthFromToolbar(int effectWidth) override;
+    void setSelectionShadowWidthFromToolbar(int width) override;
     void adjustSelectionEffectsFromWheel(int radiusDelta, int effectDelta) override {
         m_selectionEditWorkflow->adjustSelectionEffectsFromWheel(radiusDelta, effectDelta);
     }
@@ -710,6 +715,9 @@ struct ScreenshotController::Impl final : public ScreenshotToolbarCommandSink,
     ScreenshotExportQueue m_historyPinQueue{ScreenshotExportCoordinator::shared()};
     quint64 m_historyPinEpoch = 0;
     PendingSelectionAction m_pendingSelectionAction = PendingSelectionAction::None;
+#ifdef SNOW_SHOT_CONTROLLER_LIFETIME_TESTS
+    std::function<void(PendingSelectionAction)> m_captureModeHandoffForTesting;
+#endif
     ScreenshotGlobalMouseDrag m_globalMouseDrag;
     bool m_pendingOcrFromQuickOcrAction = false;
     bool m_ocrFromQuickOcrAction = false;
@@ -1215,6 +1223,8 @@ void ScreenshotController::Impl::createPresentationInfrastructure() {
     m_overlayEventAdapter = std::make_unique<ScreenshotOverlayEventAdapter>();
     m_overlayCoordinator = std::make_unique<ScreenshotOverlayCoordinator>(
         *m_overlayEventAdapter, m_canvasRuntime, *m_windowShortcutManager);
+    m_overlayCoordinator->setCaptureModeHandler(
+        [this](ScreenshotCaptureToolbarMode mode) { setCaptureToolbarMode(mode); });
     QObject::connect(qApp, &QApplication::focusChanged, &owner,
                      [this](QWidget*, QWidget* nowFocused) { rememberKeyboardOwner(nowFocused); });
     m_messages = std::make_unique<ScreenshotMessageService>(
@@ -1256,6 +1266,7 @@ void ScreenshotController::Impl::createPresentationInfrastructure() {
                 m_colorPickerController->updateForSelectionDrag(
                     canvasPosition, m_presentationServices->colorPickerContext());
             },
+            [this](ScreenshotOverlayWindow* overlay) { updateCaptureModeToolbar(overlay); },
         });
     QObject::connect(&snow_shot::shortcuts::ShortcutDisplayService::instance(),
                      &snow_shot::shortcuts::ShortcutDisplayService::displayChanged, &owner,
@@ -1316,8 +1327,7 @@ bool ScreenshotController::Impl::ensureRecognitionFeature() {
 #if SNOW_SHOT_ENABLE_TABLE_RECOGNITION || SNOW_SHOT_ENABLE_LATEX_RECOGNITION ||                    \
     SNOW_SHOT_ENABLE_IMAGE_CONVERSION || SNOW_SHOT_ENABLE_TEXT_TRANSLATION
     if (m_tableRecognition == nullptr) {
-        m_ownedApiClient =
-            std::make_unique<SnowShotApiClient>(SnowShotApiClient::configuredBaseUrl());
+        m_ownedApiClient = std::make_unique<SnowShotApiClient>(QString());
         m_tableRecognition = static_cast<SnowShotApiClient*>(m_ownedApiClient.get());
     }
 #if SNOW_SHOT_ENABLE_TEXT_TRANSLATION
@@ -3252,6 +3262,12 @@ void ScreenshotController::Impl::restoreToolUiAfterScrollingCapture(bool scrolli
 }
 
 void ScreenshotController::Impl::startScrollingScreenshot() {
+#ifdef SNOW_SHOT_CONTROLLER_LIFETIME_TESTS
+    if (m_captureModeHandoffForTesting) {
+        m_captureModeHandoffForTesting(PendingSelectionAction::StartScrolling);
+        return;
+    }
+#endif
     m_selection.setSelectionRect(m_selection.normalizedSelection());
     deactivateRecognition();
     if (!ensureScrollingFeature() || m_scrollingCaptureController->active() ||
@@ -5859,6 +5875,12 @@ bool ScreenshotController::Impl::prepareHistoryCandidate(
 }
 
 void ScreenshotController::Impl::startScreenRecording() {
+#ifdef SNOW_SHOT_CONTROLLER_LIFETIME_TESTS
+    if (m_captureModeHandoffForTesting) {
+        m_captureModeHandoffForTesting(PendingSelectionAction::StartVideo);
+        return;
+    }
+#endif
     m_selection.setSelectionRect(m_selection.normalizedSelection());
     deactivateRecognition();
     snow_shot::presentation::recording::startScreenshotRecording(
@@ -6240,6 +6262,10 @@ void ScreenshotController::Impl::setSelectionEffectWidthFromToolbar(int effectWi
     m_selectionEditWorkflow->setSelectionEffectWidthFromToolbar(effectWidth);
 }
 
+void ScreenshotController::Impl::setSelectionShadowWidthFromToolbar(int width) {
+    m_selectionEditWorkflow->setSelectionShadowWidthFromToolbar(width);
+}
+
 void ScreenshotController::Impl::endGlobalMouseDrag() {
     const quint64 id = m_globalMouseDrag.id();
     m_globalMouseDrag.reset();
@@ -6312,6 +6338,60 @@ void ScreenshotController::Impl::finishGlobalMouseDragIfReleased(bool finishRele
 
 void ScreenshotController::Impl::invalidateDelayedCapture() {
     m_delayedCapture.invalidate();
+}
+
+std::optional<ScreenshotCaptureToolbarMode>
+ScreenshotController::Impl::pendingCaptureToolbarMode() const {
+    switch (m_pendingSelectionAction) {
+    case PendingSelectionAction::None:
+        return ScreenshotCaptureToolbarMode::Screenshot;
+    case PendingSelectionAction::StartVideo:
+        return ScreenshotCaptureToolbarMode::Recording;
+    case PendingSelectionAction::StartScrolling:
+        return ScreenshotCaptureToolbarMode::Scrolling;
+    default:
+        return std::nullopt;
+    }
+}
+
+bool ScreenshotController::Impl::canChangeCaptureToolbarMode() const {
+    return pendingCaptureToolbarMode().has_value() && !m_shuttingDown && !m_recaptureBusy &&
+           !m_captureState.captureInProgress && !m_captureState.presentationSuppressed &&
+           m_captureState.sessionState == ScreenshotSessionState::OverlayVisible &&
+           m_interaction.preselectionActive(m_selection) && m_captureWorkflow &&
+           !m_captureWorkflow->captureSuspended();
+}
+
+void ScreenshotController::Impl::setCaptureToolbarMode(ScreenshotCaptureToolbarMode mode) {
+    if (!canChangeCaptureToolbarMode())
+        return;
+    switch (mode) {
+    case ScreenshotCaptureToolbarMode::Screenshot:
+        m_pendingSelectionAction = PendingSelectionAction::None;
+        break;
+    case ScreenshotCaptureToolbarMode::Recording:
+        m_pendingSelectionAction = PendingSelectionAction::StartVideo;
+        break;
+    case ScreenshotCaptureToolbarMode::Scrolling:
+        m_pendingSelectionAction = PendingSelectionAction::StartScrolling;
+        break;
+    }
+    // Change the destination of this selection, retaining the existing captured frame.
+    // A direct recording invocation starts with the editing toolbar suppressed.
+    if (mode != ScreenshotCaptureToolbarMode::Recording)
+        m_captureWorkflow->enableCaptureToolbar();
+    m_presentationServices->updateOverlayState();
+}
+
+void ScreenshotController::Impl::updateCaptureModeToolbar(ScreenshotOverlayWindow* overlay) {
+    const auto mode = pendingCaptureToolbarMode();
+    if (!overlay || !mode || m_shuttingDown || m_captureState.presentationSuppressed ||
+        m_captureState.sessionState != ScreenshotSessionState::OverlayVisible ||
+        !m_interaction.selecting()) {
+        m_overlayCoordinator->hideCaptureModeToolbar();
+        return;
+    }
+    m_overlayCoordinator->updateCaptureModeToolbar(overlay, *mode, canChangeCaptureToolbarMode());
 }
 
 void ScreenshotController::Impl::resetPendingCaptureRequest() {
@@ -6554,6 +6634,7 @@ void ScreenshotController::Impl::scheduleAutomaticQrRecognition() {
 }
 
 void ScreenshotController::Impl::handleSelectionConfirmed() {
+    m_overlayCoordinator->hideCaptureModeToolbar();
     scheduleAutomaticQrRecognition();
 
     const PendingSelectionAction action =
@@ -7168,6 +7249,49 @@ void ScreenshotControllerTestAccess::prepareSelection(ScreenshotController& cont
 
 SnowCanvasRuntime& ScreenshotControllerTestAccess::runtime(ScreenshotController& controller) {
     return controller.m_impl->m_canvasRuntime;
+}
+
+ScreenshotOverlayWindow*
+ScreenshotControllerTestAccess::prepareCaptureModes(ScreenshotController& controller,
+                                                    ScreenshotController::CaptureAction action,
+                                                    bool presentationSuppressed) {
+    QImage image(800, 600, QImage::Format_RGB32);
+    image.fill(QColor("#224466"));
+    prepareSelection(controller, std::move(image), {});
+    auto& state = *controller.m_impl;
+    state.m_pendingSelectionAction = action;
+    state.m_captureState.sessionState = ScreenshotSessionState::OverlayVisible;
+    state.m_captureState.presentationSuppressed = presentationSuppressed;
+    state.m_captureWorkflow->m_toolbarVisibility =
+        action == ScreenshotController::CaptureAction::StartVideo
+            ? ScreenshotCaptureWorkflow::ToolbarVisibility::Suppressed
+            : ScreenshotCaptureWorkflow::ToolbarVisibility::ShowAfterSelection;
+    state.m_interaction.enterOverlayVisible(false);
+    return presentSelection(controller);
+}
+
+void ScreenshotControllerTestAccess::refreshCaptureModes(ScreenshotController& controller) {
+    controller.m_impl->m_presentationServices->updateOverlayState();
+}
+
+void ScreenshotControllerTestAccess::interceptCaptureModeHandoff(
+    ScreenshotController& controller,
+    std::function<void(ScreenshotController::CaptureAction)> handler) {
+    controller.m_impl->m_captureModeHandoffForTesting = std::move(handler);
+}
+
+bool ScreenshotControllerTestAccess::captureToolbarSuppressed(
+    const ScreenshotController& controller) {
+    return controller.m_impl->m_captureWorkflow->suppressCaptureToolbar();
+}
+
+ScreenshotController::CaptureAction
+ScreenshotControllerTestAccess::pendingCaptureAction(const ScreenshotController& controller) {
+    return controller.m_impl->m_pendingSelectionAction;
+}
+
+quint64 ScreenshotControllerTestAccess::captureSessionId(const ScreenshotController& controller) {
+    return controller.m_impl->m_captureState.sessionId;
 }
 
 ScreenshotOverlayInputHandler&

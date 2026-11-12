@@ -1725,6 +1725,10 @@ SnowError snow_viewport_get_watermark_config(SnowRuntime runtime, SnowViewport v
 SnowError snow_viewport_set_watermark_config_ex(SnowRuntime runtime, SnowViewport viewport,
                                                 const SnowWatermarkConfig* config,
                                                 SnowChangedViewportList* out_changed_viewports);
+/* Persistent screenshot decoration, independent of annotation undo/redo. */
+SnowError snow_viewport_set_watermark_config_without_history_ex(
+    SnowRuntime runtime, SnowViewport viewport, const SnowWatermarkConfig* config,
+    SnowChangedViewportList* out_changed_viewports);
 
 SnowError
 snow_viewport_set_rectangle_shape_style_ex(SnowRuntime runtime, SnowViewport viewport,
@@ -1819,6 +1823,10 @@ SnowError
 snow_viewport_commit_text_draft_payload_ex(SnowRuntime runtime, SnowViewport viewport,
                                            const SnowTextCommitDraft* draft,
                                            SnowChangedViewportList* out_changed_viewports);
+/* Actual ordinary-text edit states, excluding the initial state and IME preedit. */
+SnowError snow_viewport_commit_text_history_ex(SnowRuntime runtime, SnowViewport viewport,
+                                               const SnowTextCommitDraft* drafts, uint32_t count,
+                                               SnowChangedViewportList* out_changed_viewports);
 
 SnowError snow_viewport_select_element_ex(SnowRuntime runtime, SnowViewport viewport,
                                           SnowElementId id,

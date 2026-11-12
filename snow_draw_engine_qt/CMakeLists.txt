@@ -508,6 +508,17 @@ if(SNOW_DRAW_ENGINE_QT_BUILD_TESTS)
         COMMAND snow-canvas-text-draft-tests --text-input-only -platform offscreen)
     set_tests_properties(snow-canvas-text-input-tests PROPERTIES LABELS unit TIMEOUT 30)
 
+    add_executable(snow-canvas-screenshot-compatibility-tests
+        tests/snow_canvas_screenshot_compatibility_tests.cpp)
+    target_include_directories(snow-canvas-screenshot-compatibility-tests PRIVATE
+        ${SNOW_CANVAS_QT_PRIVATE_SOURCE_DIRS}
+        "${CMAKE_CURRENT_SOURCE_DIR}/crates/snow-draw-engine-c/include")
+    target_link_libraries(snow-canvas-screenshot-compatibility-tests PRIVATE snow_draw_engine_qt_canvas)
+    snow_shot_import_offscreen_platform(snow-canvas-screenshot-compatibility-tests)
+    add_test(NAME snow-canvas-screenshot-compatibility-tests
+        COMMAND snow-canvas-screenshot-compatibility-tests -platform offscreen)
+    set_tests_properties(snow-canvas-screenshot-compatibility-tests PROPERTIES LABELS unit TIMEOUT 30)
+
     add_executable(snow-canvas-text-emphasis-tests tests/snow_canvas_text_emphasis_tests.cpp)
     target_include_directories(snow-canvas-text-emphasis-tests PRIVATE
         ${SNOW_CANVAS_QT_PRIVATE_SOURCE_DIRS}

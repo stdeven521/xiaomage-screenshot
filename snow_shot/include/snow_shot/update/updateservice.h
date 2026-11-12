@@ -47,6 +47,8 @@ class UpdateService final : public QObject {
     Q_OBJECT
   public:
     struct Options {
+        // Distribution policy takes precedence over saved update preferences.
+        bool enabled = true;
         QString applicationDirectory;
         QString root;
         QString cacheDirectory;

@@ -1554,10 +1554,6 @@
             <translation>輔助使用</translation>
         </message>
         <message>
-            <source>Account</source>
-            <translation>帳號</translation>
-        </message>
-        <message>
             <source>Accuracy first</source>
             <translation>準確優先</translation>
         </message>
@@ -2148,10 +2144,6 @@
         <message>
             <source>Choose the scheduling level for the interface and application workers. Changes take effect after restarting Snow Shot</source>
             <translation>選擇介面及應用程式工作執行緒的排程等級。變更將於重新啟動 Snow Shot 後生效</translation>
-        </message>
-        <message>
-            <source>Choose the server for built-in online services. Application updates are not affected</source>
-            <translation>選擇內建線上服務使用的伺服器。此設定不影響應用程式更新</translation>
         </message>
         <message>
             <source>Choose the size of the screenshot, pinned, and recording toolbars</source>
@@ -2768,10 +2760,6 @@
         <message>
             <source>Enlarge short side (more detail)</source>
             <translation>放大短邊（更多細節）</translation>
-        </message>
-        <message>
-            <source>Enter an HTTP or HTTPS address. Changes apply immediately. Clear to use the default server</source>
-            <translation>輸入 HTTP 或 HTTPS 位址。變更立即生效。清空可使用預設伺服器</translation>
         </message>
         <message>
             <source>Enter or browse to a PNG or ICO file for dark theme; invalid files use the selected bundled icon</source>
@@ -3400,10 +3388,6 @@
         <message>
             <source>Medium V6</source>
             <translation>中型 V6</translation>
-        </message>
-        <message>
-            <source>Membership, credits and transactions</source>
-            <translation>會員、餘額及帳號明細</translation>
         </message>
         <message>
             <source>Memory optimization policy</source>
@@ -4390,10 +4374,6 @@
             <translation>序號</translation>
         </message>
         <message>
-            <source>Server address</source>
-            <translation>伺服器位址</translation>
-        </message>
-        <message>
             <source>Set how much Ctrl+mouse wheel changes pinned window opacity</source>
             <translation>設定 Ctrl+滑鼠滾輪調整固定到螢幕視窗不透明度的步長</translation>
         </message>
@@ -4700,10 +4680,6 @@
         <message>
             <source>Snow Shot</source>
             <translation>Snow Shot</translation>
-        </message>
-        <message>
-            <source>Snow Shot server</source>
-            <translation>Snow Shot 伺服器</translation>
         </message>
         <message>
             <source>Snowflake</source>

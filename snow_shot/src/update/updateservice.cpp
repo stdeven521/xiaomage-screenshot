@@ -260,7 +260,7 @@ struct UpdateService::Impl {
     }
 
     bool automaticEnabled() const {
-        return mode != u"manual";
+        return options.enabled && mode != u"manual";
     }
 
     bool automaticDownloadEnabled() const {
@@ -300,7 +300,7 @@ struct UpdateService::Impl {
         if (operation == Operation::None) {
             return;
         }
-        if (storeManaged) {
+        if (!options.enabled || storeManaged) {
             emit q.operationFinished(operationName(operation), QStringLiteral("unsupported"));
             return;
         }
@@ -815,7 +815,8 @@ const UpdateStatus& UpdateService::status() const {
     return m_impl->status;
 }
 UpdateCapabilities UpdateService::capabilities() const {
-    return {!managedByStore(), !managedByStore(), !managedByStore()};
+    const bool enabled = m_impl->options.enabled && !managedByStore();
+    return {enabled, enabled, enabled};
 }
 
 void UpdateService::setHandoffApproval(QObject* context, std::function<bool()> approval) {
@@ -861,7 +862,7 @@ bool UpdateService::handoffPending() const {
 }
 
 void UpdateService::start() {
-    if (m_impl->started || managedByStore()) {
+    if (!m_impl->options.enabled || m_impl->started || managedByStore()) {
         return;
     }
     m_impl->started = true;
@@ -870,7 +871,7 @@ void UpdateService::start() {
 }
 
 void UpdateService::setMode(const QString& mode) {
-    if (managedByStore()) {
+    if (!m_impl->options.enabled || managedByStore()) {
         return;
     }
     if (mode != u"manual" && mode != u"check" && mode != u"download" && mode != u"next_launch") {
@@ -978,7 +979,7 @@ void UpdateService::cancel() {
 }
 
 void UpdateService::requestRestart() {
-    if (managedByStore()) {
+    if (!m_impl->options.enabled || managedByStore()) {
         return;
     }
     emit restartRequested();

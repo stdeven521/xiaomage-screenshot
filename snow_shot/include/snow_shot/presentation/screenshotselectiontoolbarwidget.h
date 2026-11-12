@@ -17,10 +17,12 @@
 #include <QWidget>
 
 class QLabel;
+class QCheckBox;
 class QEvent;
 class QHideEvent;
 class QPaintEvent;
 class QShowEvent;
+class QSlider;
 class QListView;
 class QTimer;
 class ScreenshotSelectionToolbarCommandSink;
@@ -44,6 +46,7 @@ class ScreenshotSelectionToolbarWidget final : public QWidget {
     void resetForNewCapture();
     void prepareForDisplay();
     void prewarm();
+    void setScreenshotCompatibilityEnabled(bool enabled);
     void setSelectionEditCapabilities(bool editable, bool resizable);
     void setPointerInteractionEnabled(bool enabled);
     void setCornerRadiusApplicable(bool enabled);
@@ -99,6 +102,7 @@ class ScreenshotSelectionToolbarWidget final : public QWidget {
     void updateLockIconPixmap();
     void updateIconPixmaps();
     void updateDisplayMode();
+    void updateCompatibilityControls();
     void updateMouseEventTransparency();
     bool pointerInteractionEnabled() const;
     bool selectionInputEnabled() const;
@@ -115,6 +119,7 @@ class ScreenshotSelectionToolbarWidget final : public QWidget {
     bool m_cornerRadiusApplicable = true;
     QLabel* m_widthLabel = nullptr;
     QLabel* m_sizeUnitLabel = nullptr;
+    QLabel* m_sizeSeparatorLabel = nullptr;
     QLabel* m_positionUnitLabel = nullptr;
     ScreenshotSelectionDisplayValues m_displayValues;
     QList<QLabel*> m_canvasUnitLabels;
@@ -145,6 +150,14 @@ class ScreenshotSelectionToolbarWidget final : public QWidget {
     DisplayMode m_displayMode = DisplayMode::Full;
     int m_cornerRadius = 0;
     int m_effectWidth = 0;
+    ScreenshotSelectionBorderType m_borderType = ScreenshotSelectionBorderType::Shadow;
+    bool m_screenshotCompatibilityEnabled = false;
+    QWidget* m_compatibilityControls = nullptr;
+    QLabel* m_compatibilityRadiusCaption = nullptr;
+    QSlider* m_compatibilityRadiusSlider = nullptr;
+    QLabel* m_compatibilityRadiusValue = nullptr;
+    QCheckBox* m_compatibilityShadowCheckBox = nullptr;
+    int m_lastNonzeroEffectWidth = 12;
 };
 
 #endif // SNOW_SHOT_PRESENTATION_SCREENSHOTSELECTIONTOOLBARWIDGET_H

@@ -102,6 +102,8 @@ CreateSerialNumberTextResult createSerialNumberText(SnowRuntime runtime, SnowVie
                                                     const SnowTextLayoutSize& layout);
 MutationResult commitText(SnowRuntime runtime, SnowViewport viewport,
                           const CommitTextRequest& request);
+MutationResult commitTextHistory(SnowRuntime runtime, SnowViewport viewport,
+                                 const std::vector<CommitTextRequest>& requests);
 ProcessInputResult processInput(SnowRuntime runtime, SnowViewport viewport,
                                 const SnowInputEvent& event);
 ProcessInputResult processPointerMoveBatch(SnowRuntime runtime, SnowViewport viewport,
@@ -128,7 +130,7 @@ MutationResult setShapeStylePatch(SnowRuntime runtime, SnowViewport viewport,
                                   const SnowShapeStyle& style, std::uint32_t properties,
                                   SnowShapeKind kind);
 MutationResult setWatermarkConfig(SnowRuntime runtime, SnowViewport viewport,
-                                  const SnowWatermarkConfig& config);
+                                  const SnowWatermarkConfig& config, bool recordHistory = true);
 MutationResult setSpotlightConfig(SnowRuntime runtime, SnowViewport viewport,
                                   const SnowSpotlightConfig& config);
 MutationResult setFilterStyle(SnowRuntime runtime, SnowViewport viewport,

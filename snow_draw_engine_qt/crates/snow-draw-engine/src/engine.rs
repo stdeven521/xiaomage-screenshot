@@ -56,6 +56,8 @@ mod retained_tests;
 #[cfg(test)]
 mod rounded_diamond_tests;
 #[cfg(test)]
+mod screenshot_compatibility_tests;
+#[cfg(test)]
 mod shape_text_tests;
 #[cfg(test)]
 mod speech_bubble_tests;
@@ -603,6 +605,26 @@ impl Engine {
         let before = self.editor.snapshot();
         if let Some(command) = self.editor.set_watermark_config(&self.model, config)? {
             self.apply_editor_command(id, command)
+        } else {
+            self.refresh_after_session_mutation(before)
+        }
+    }
+
+    /// Screenshot decoration changes are persistent but independent of annotation history.
+    /// In particular clearing a watermark must not remove an unrelated annotation.
+    pub fn set_viewport_watermark_config_without_history(
+        &mut self,
+        id: ViewportId,
+        config: WatermarkConfig,
+    ) -> Result<MutationResult, ErrorCode> {
+        self.ensure_viewport(id)?;
+        let snapshot = self.capture_session_snapshot();
+        let before = self.editor.snapshot();
+        if let Some(EditorCommand::ApplyTransaction(command)) =
+            self.editor.set_watermark_config(&self.model, config)?
+        {
+            let applied = self.model.apply_transaction(command.transaction)?;
+            Ok(self.finish_document_change(&snapshot, &applied.changes))
         } else {
             self.refresh_after_session_mutation(before)
         }

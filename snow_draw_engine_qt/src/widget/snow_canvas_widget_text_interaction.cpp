@@ -885,24 +885,42 @@ SnowCanvasWidgetTextInteraction::commit(SnowRuntime runtime, SnowViewport viewpo
         updateRegion = committedTextRegion(updateRegion, displayCache, m_widget.rect());
     } else if (edit.shouldCommit(hasViewport)) {
         const QByteArray utf8 = edit.text.toUtf8();
-        snow_canvas_commands::MutationResult result =
-            snow_canvas_commands::commitText(runtime, viewport,
-                                             snow_canvas_commands::CommitTextRequest{
-                                                 edit.elementId,
-                                                 edit.hasExistingElement,
-                                                 edit.canvasCenter.x(),
-                                                 edit.canvasCenter.y(),
-                                                 utf8.constData(),
-                                                 static_cast<std::uint32_t>(utf8.size()),
-                                                 edit.measuredLayout,
-                                                 edit.style,
-                                                 edit.autoResize,
-                                                 edit.styleChanged,
-                                                 edit.arrowId,
-                                                 edit.bubbleId,
-                                                 edit.minimumGraphemeWidth,
-                                                 edit.textInkReserve,
-                                             });
+        const snow_canvas_commands::CommitTextRequest request{
+            edit.elementId,
+            edit.hasExistingElement,
+            edit.canvasCenter.x(),
+            edit.canvasCenter.y(),
+            utf8.constData(),
+            static_cast<std::uint32_t>(utf8.size()),
+            edit.measuredLayout,
+            edit.style,
+            edit.autoResize,
+            edit.styleChanged,
+            edit.arrowId,
+            edit.bubbleId,
+            edit.minimumGraphemeWidth,
+            edit.textInkReserve,
+        };
+        snow_canvas_commands::MutationResult result;
+        if (!deleteElement && !edit.historySteps.empty()) {
+            std::vector<QByteArray> encoded;
+            std::vector<snow_canvas_commands::CommitTextRequest> requests;
+            encoded.reserve(edit.historySteps.size());
+            requests.reserve(edit.historySteps.size());
+            for (const auto& step : edit.historySteps) {
+                encoded.push_back(step.text.toUtf8());
+                auto historical = request;
+                historical.centerX = step.canvasCenter.x();
+                historical.centerY = step.canvasCenter.y();
+                historical.utf8Data = encoded.back().constData();
+                historical.utf8Len = static_cast<std::uint32_t>(encoded.back().size());
+                historical.measuredLayout = step.measuredLayout;
+                requests.push_back(historical);
+            }
+            result = snow_canvas_commands::commitTextHistory(runtime, viewport, requests);
+        } else {
+            result = snow_canvas_commands::commitText(runtime, viewport, request);
+        }
         if (result.success) {
             commitResult.changedViewports = std::move(result.changedViewports);
         } else {

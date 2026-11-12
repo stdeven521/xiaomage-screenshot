@@ -734,6 +734,21 @@ void runScreenshotSelectionEffectEditorTests() {
                              directory.filePath(QStringLiteral("data")), 60000})
                 .success,
             "effect tests require isolated storage");
+    {
+        Fixture fixture;
+        fixture.selection.setBorderType(ScreenshotSelectionBorderType::Border);
+        fixture.selection.setEffectWidth(3);
+        fixture.workflow->setSelectionShadowWidthFromToolbar(12);
+        require(fixture.selection.borderType() == ScreenshotSelectionBorderType::Shadow &&
+                    fixture.selection.effectWidth() == 12 && fixture.selection.borderWidth() == 3 &&
+                    fixture.writes == 1,
+                "QQ shadow switch must enable a shadow even after a saved border preference");
+        fixture.workflow->setSelectionShadowWidthFromToolbar(0);
+        require(fixture.selection.effectWidth() == 0 && fixture.writes == 2,
+                "QQ shadow switch must remove the effect and persist once");
+        fixture.workflow->setSelectionShadowWidthFromToolbar(0);
+        require(fixture.writes == 2, "repeating the shadow state must not persist again");
+    }
     radiusHandlesShareValuesAndPreserveBounds();
     hoverHysteresisLimitsAndTinySelections();
     borderDraggingPreservesInactiveShadow();

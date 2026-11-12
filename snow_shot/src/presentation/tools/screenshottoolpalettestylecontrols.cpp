@@ -70,6 +70,8 @@ constexpr int kTextStrokeColorTrailingSpacing = 4;
 constexpr int kSequenceNumberTrailingSpacing = 4;
 constexpr int kSequenceNumberInputWidth = 64;
 constexpr int kWatermarkTextWidth = 135;
+// QQ's input measures about 286 physical pixels in the 144 DPI (150%) reference.
+constexpr int kCompatibilityWatermarkTextWidth = 191;
 constexpr int kWatermarkTemplateActionWidth = 32;
 constexpr int kWatermarkTemplateActionIconSize = 16;
 constexpr int kOpacitySliderWidth = 96;
@@ -266,7 +268,11 @@ class DistanceValueTextPolicy final : public adqt::widgets::AdInputNumberTextPol
     }
 };
 
-QVector<QByteArray> styleEditorRoles(ScreenshotToolPalette::Tool tool) {
+QVector<QByteArray> styleEditorRoles(ScreenshotToolPalette::Tool tool,
+                                     bool screenshotCompatibility) {
+    if (screenshotCompatibility && tool == ScreenshotToolPalette::Tool::Watermark) {
+        return {kRoleWatermarkText, kRoleForegroundColor};
+    }
     using Tool = ScreenshotToolPalette::Tool;
     switch (tool) {
     case Tool::SpeechBubble:
@@ -820,8 +826,9 @@ bool ScreenshotToolPaletteWheelPosition::isOver(const QWidget* widget) const {
 
 ScreenshotToolPaletteStyleControls::ScreenshotToolPaletteStyleControls(
     ScreenshotToolPaletteStyleControlCallbacks callbacks, const SnowCanvasStyleDefaults& defaults,
-    std::function<QDateTime()> watermarkTemplateClock)
-    : m_state(defaults), m_callbacks(std::move(callbacks)), m_defaults(defaults),
+    std::function<QDateTime()> watermarkTemplateClock, bool screenshotCompatibility)
+    : m_state(defaults), m_screenshotCompatibility(screenshotCompatibility),
+      m_callbacks(std::move(callbacks)), m_defaults(defaults),
       m_watermarkTemplateClock(std::move(watermarkTemplateClock)) {}
 
 ScreenshotToolPaletteStyleControls::~ScreenshotToolPaletteStyleControls() {
@@ -1233,8 +1240,9 @@ void ScreenshotToolPaletteStyleControls::prepareStyleReconcile(int sourceTool, i
 
     const auto source = static_cast<ScreenshotToolPalette::Tool>(sourceTool);
     const auto destination = static_cast<ScreenshotToolPalette::Tool>(destinationTool);
-    const QVector<QByteArray> sourceRoles = styleEditorRoles(source);
-    const QVector<QByteArray> destinationRoles = styleEditorRoles(destination);
+    const QVector<QByteArray> sourceRoles = styleEditorRoles(source, m_screenshotCompatibility);
+    const QVector<QByteArray> destinationRoles =
+        styleEditorRoles(destination, m_screenshotCompatibility);
     QVector<QByteArray> sharedRoles;
     for (const QByteArray& role : sourceRoles) {
         if (destinationRoles.contains(role)) {
@@ -1378,8 +1386,8 @@ void ScreenshotToolPaletteStyleControls::stageDestinationStyleEditors(
         return;
     }
     const auto destination = static_cast<ScreenshotToolPalette::Tool>(destinationTool);
-    const QVector<QByteArray> sourceRoles =
-        styleEditorRoles(static_cast<ScreenshotToolPalette::Tool>(m_reconcileSourceTool));
+    const QVector<QByteArray> sourceRoles = styleEditorRoles(
+        static_cast<ScreenshotToolPalette::Tool>(m_reconcileSourceTool), m_screenshotCompatibility);
     const auto destinationOnly = [&sourceRoles](const char* role) {
         return !sourceRoles.contains(QByteArray(role));
     };
@@ -3992,6 +4000,11 @@ QWidget* ScreenshotToolPaletteStyleControls::buildWatermarkFamily(
         layout->addWidget(m_watermarkTextEdit);
     }
     m_watermarkTextEdit->setFocusPolicy(Qt::ClickFocus);
+    // Preserve existing longer watermarks when opening old documents. Once
+    // shortened, the input cannot grow beyond the QQ limit again.
+    m_watermarkTextEdit->setMaxLength(
+        m_screenshotCompatibility ? qMax(16, static_cast<int>(config.text.size())) : 32767);
+    m_watermarkTextEdit->setAllowClear(m_screenshotCompatibility);
     m_watermarkTextEdit->setObjectName(QStringLiteral("screenshotWatermarkTextEdit"));
     m_watermarkTextEdit->setProperty("screenshotStyleEditorRoot", true);
     m_watermarkTextEdit->setProperty("screenshotStyleEditorRole", kRoleWatermarkText);
@@ -4006,16 +4019,22 @@ QWidget* ScreenshotToolPaletteStyleControls::buildWatermarkFamily(
     m_watermarkTextEdit->setAccessibleName(watermarkTextLabel);
     m_watermarkTextEdit->setControlSize(adqt::widgets::AdLineEdit::ControlSize::Small);
     m_watermarkTextEdit->setVariant(adqt::widgets::AdLineEdit::Variant::Borderless);
+    const int watermarkTextWidth =
+        m_screenshotCompatibility ? kCompatibilityWatermarkTextWidth : kWatermarkTextWidth;
     m_watermarkTextEdit->setFixedSize(
-        qMax(1, qRound(static_cast<qreal>(kWatermarkTextWidth) * metrics.physicalScale)),
+        qMax(1, qRound(static_cast<qreal>(watermarkTextWidth) * metrics.physicalScale)),
         qMax(1, qRound(metrics.buttonSize * metrics.physicalScale)));
-    stampScreenshotToolbarReferenceWidth(m_watermarkTextEdit, kWatermarkTextWidth);
+    stampScreenshotToolbarReferenceWidth(m_watermarkTextEdit, watermarkTextWidth);
     {
         const QSignalBlocker blocker(m_watermarkTextEdit);
         m_watermarkTextEdit->setText(config.text);
     }
     QObject::connect(m_watermarkTextEdit, &QLineEdit::textChanged, controlCallbackContext(controls),
                      [this](const QString& text) {
+                         if (m_screenshotCompatibility) {
+                             m_watermarkTextEdit->setMaxLength(
+                                 qMax(16, static_cast<int>(text.size())));
+                         }
                          const QString normalized = text.trimmed();
                          if (m_state.m_watermarkConfig.text == normalized) {
                              return;
@@ -4030,6 +4049,19 @@ QWidget* ScreenshotToolPaletteStyleControls::buildWatermarkFamily(
                          const QSignalBlocker blocker(m_watermarkTextEdit);
                          m_watermarkTextEdit->setText(normalized);
                      });
+
+    if (m_screenshotCompatibility) {
+        // Match QQ's text / separator / color order. The advanced editors remain
+        // available to other palette hosts and are not part of this composition.
+        layout->removeWidget(m_watermarkTextEdit);
+        layout->insertWidget(0, m_watermarkTextEdit);
+        QWidget* colorRoot = m_watermarkColorEditor->rootWidget();
+        layout->removeWidget(colorRoot);
+        layout->addWidget(colorRoot);
+        registerWatermarkEntries();
+        updateWatermarkControls();
+        return controls;
+    }
 
     ScreenshotToolPaletteFontEditorConfig watermarkFontConfig;
     watermarkFontConfig.accessibleName = QStringLiteral("Watermark font family");
@@ -5089,6 +5121,9 @@ void ScreenshotToolPaletteStyleControls::registerWatermarkEntries() {
              }
              if (m_watermarkTextEdit != nullptr) {
                  const QSignalBlocker blocker(m_watermarkTextEdit);
+                 m_watermarkTextEdit->setMaxLength(
+                     m_screenshotCompatibility ? qMax(16, static_cast<int>(config.text.size()))
+                                               : 32767);
                  m_watermarkTextEdit->setText(config.text);
              }
              if (m_watermarkFontEditor != nullptr) {
@@ -6053,10 +6088,12 @@ void ScreenshotToolPaletteStyleControls::refreshToolbarMetrics(
     }
 
     if (applies(m_watermarkTextEdit)) {
+        const int textWidth =
+            m_screenshotCompatibility ? kCompatibilityWatermarkTextWidth : kWatermarkTextWidth;
         m_watermarkTextEdit->setFixedSize(
-            qMax(1, qRound(static_cast<qreal>(kWatermarkTextWidth) * metrics.physicalScale)),
+            qMax(1, qRound(static_cast<qreal>(textWidth) * metrics.physicalScale)),
             qMax(1, qRound(metrics.buttonSize * metrics.physicalScale)));
-        stampScreenshotToolbarReferenceWidth(m_watermarkTextEdit, kWatermarkTextWidth);
+        stampScreenshotToolbarReferenceWidth(m_watermarkTextEdit, textWidth);
     }
     if (applies(m_watermarkTemplateSelect)) {
         m_watermarkTemplateSelect->setFixedWidth(qMax(

@@ -12,9 +12,9 @@
 #include "snow_shot/storage/configurationschema.h"
 #include "snow_shot/update/updateservice.h"
 #include "snow_shot/app/distribution.h"
+#include "snow_shot/app/edition.h"
 
 #include "widgets/button.h"
-#include "widgets/button_style.h"
 #include "widgets/divider.h"
 #include "theme/theme.h"
 #include "widgets/navigation_menu.h"
@@ -207,79 +207,6 @@ void stableVersionsDoNotClaimToBePreviews() {
     }
 }
 
-void projectLinkSurfacesMatchStandardButtons() {
-    using adqt::widgets::AdButton;
-    auto& manager = styles::ThemeManager::instance();
-    AboutPageWidget page;
-    page.resize(700, 540);
-    page.show();
-    flushEvents();
-    const auto surface = [](QWidget& widget, qreal dpr) {
-        QImage image(QSize(qRound(widget.width() * dpr), qRound(widget.height() * dpr)),
-                     QImage::Format_ARGB32_Premultiplied);
-        image.setDevicePixelRatio(dpr);
-        image.fill(Qt::transparent);
-        widget.render(&image, QPoint(), QRegion(), QWidget::DrawWindowBackground);
-        return image;
-    };
-    for (const auto appearance : {styles::ThemeAppearance::Light, styles::ThemeAppearance::Dark}) {
-        manager.setThemeAppearance(appearance);
-        flushEvents();
-        for (const char* name : {"aboutWebsite", "aboutSourceCode", "aboutFeedback",
-                                 "aboutQqGroup3", "aboutQqGroup4"}) {
-            auto* button = child<AdButton>(page, name);
-            require(button->buttonStyle() == AdButton::ButtonStyle::Outline &&
-                        button->accentRole() == AdButton::AccentRole::Neutral,
-                    "resource links use standard neutral outline buttons");
-            AdButton reference(button->parentWidget());
-            reference.resize(button->size());
-            reference.show();
-            reference.clearFocus();
-            button->clearFocus();
-            for (const int state : {0, 1, 2, 3}) {
-                for (AdButton* target : {button, &reference}) {
-                    target->setEnabled(state != 3);
-                    target->setDown(state == 2);
-                    if (state == 1) {
-                        QEnterEvent enter(QPointF(2, 2), QPointF(2, 2), QPointF(2, 2));
-                        QCoreApplication::sendEvent(target, &enter);
-                    } else {
-                        QEvent leave(QEvent::Leave);
-                        QCoreApplication::sendEvent(target, &leave);
-                    }
-                }
-                for (const qreal dpr : {1.0, 1.25, 1.5, 1.75, 2.0}) {
-                    require(surface(*button, dpr) == surface(reference, dpr),
-                            "resource link surfaces match AdButton in both themes, all "
-                            "interaction states and fractional scales");
-                }
-                adqt::widgets::detail::ButtonStyleInput input;
-                input.buttonStyle = reference.buttonStyle();
-                input.accentRole = reference.accentRole();
-                input.sizeClass = reference.sizeClass();
-                input.baseFont = reference.font();
-                const auto visual = adqt::widgets::detail::resolveButtonVisualStyle(
-                    input, adqt::theme::ThemeManager::instance().resolve(&reference));
-                const QColor expected = state == 3   ? visual.disabled.text
-                                        : state == 2 ? visual.active.text
-                                        : state == 1 ? visual.hover.text
-                                                     : visual.normal.text;
-                for (const auto* suffix : {"Title", "Description"}) {
-                    auto* label = button->findChild<QLabel*>(QString::fromLatin1(name) +
-                                                             QString::fromLatin1(suffix));
-                    require(label != nullptr &&
-                                label->palette().color(label->foregroundRole()) == expected,
-                            "resource link titles and descriptions follow AdButton text colors "
-                            "in both themes and every interaction state");
-                }
-            }
-            button->setEnabled(true);
-            button->setDown(false);
-        }
-    }
-    manager.setThemeAppearance(styles::ThemeAppearance::Light);
-}
-
 void storeUpdatesOpenMicrosoftStore() {
 #ifdef Q_OS_WIN
     snow_shot::update::UpdateService::Options options;
@@ -324,27 +251,10 @@ void projectLinksAreExplicitAccessibleAndRecoverable() {
     page.show();
     flushEvents();
     require(opened.isEmpty(), "About does not open links or check for updates on construction");
-    require(page.findChild<QAbstractButton*>(QStringLiteral("aboutQqGroup2")) == nullptr,
-            "About no longer offers QQ Group 2");
-    auto* group = child<QAbstractButton>(page, "aboutQqGroup3");
-    auto* group4 = child<QAbstractButton>(page, "aboutQqGroup4");
-    auto* website = child<QAbstractButton>(page, "aboutWebsite");
-    auto* feedback = child<QAbstractButton>(page, "aboutFeedback");
-    require(group->geometry().left() == website->geometry().left() &&
-                group4->geometry().right() == feedback->geometry().right() &&
-                group->geometry().top() == group4->geometry().top() &&
-                group->geometry().right() < group4->geometry().left() &&
-                qAbs(group->width() - group4->width()) <= 1,
-            "both QQ groups share the second project link row equally");
     snapshot(page, QStringLiteral("about-actions"));
     const QString project = QStringLiteral(SNOW_SHOT_TEST_PROJECT_URL);
-    const std::array<std::pair<const char*, QUrl>, 8> links{{
-        {"aboutWebsite", QUrl(QStringLiteral(SNOW_SHOT_TEST_WEBSITE_URL))},
-        {"aboutSourceCode", QUrl(project)},
-        {"aboutFeedback", QUrl(project + QStringLiteral("/issues"))},
+    const std::array<std::pair<const char*, QUrl>, 3> links{{
         {"aboutReleaseNotes", QUrl(project + QStringLiteral("/releases"))},
-        {"aboutQqGroup3", QUrl(QStringLiteral(SNOW_SHOT_TEST_QQ_GROUP_3_URL))},
-        {"aboutQqGroup4", QUrl(QStringLiteral(SNOW_SHOT_TEST_QQ_GROUP_4_URL))},
         {"aboutPrivacyPolicy", QUrl(snow_shot::app::distribution::privacyPolicyUrl())},
         {"aboutUserAgreement", QUrl(QStringLiteral("https://snowshot.top/terms.html"))},
     }};
@@ -368,7 +278,7 @@ void projectLinksAreExplicitAccessibleAndRecoverable() {
     page.resize(360, 240);
     flushEvents();
     canOpen = false;
-    child<QAbstractButton>(page, "aboutWebsite")->click();
+    child<QAbstractButton>(page, "aboutReleaseNotes")->click();
     flushEvents();
     auto* error = child<QLabel>(page, "aboutLinkError");
     require(!error->isHidden() && error->text().contains(links.front().second.toDisplayString()) &&
@@ -395,7 +305,7 @@ void projectLinksAreExplicitAccessibleAndRecoverable() {
         flushEvents();
     }
     canOpen = true;
-    child<QAbstractButton>(page, "aboutWebsite")->click();
+    child<QAbstractButton>(page, "aboutReleaseNotes")->click();
     require(error->isHidden() && error->text().isEmpty(), "successful retries clear link errors");
     page.hide();
 }
@@ -428,8 +338,7 @@ void largerTypeKeepsEveryActionReachable() {
     require(artwork->width() <= scroll->viewport()->width() && artwork->height() > 0,
             "artwork scales down to the available width with larger fonts");
     for (const char* name : {"aboutCopyVersion", "aboutReleaseNotes", "aboutUpdateAction",
-                             "aboutWebsite", "aboutSourceCode", "aboutFeedback", "aboutQqGroup3",
-                             "aboutQqGroup4", "aboutPrivacyPolicy", "aboutUserAgreement"}) {
+                             "aboutPrivacyPolicy", "aboutUserAgreement"}) {
         auto* button = child<QAbstractButton>(page, name);
         scroll->ensureWidgetVisible(button);
         flushEvents();
@@ -940,7 +849,6 @@ void mainNavigationSearchThemesAndLanguages() {
             "search navigation opens About and synchronizes the sidebar");
 
     QImage previousHero;
-    QImage previousArtwork;
     for (const auto appearance : {styles::ThemeAppearance::Light, styles::ThemeAppearance::Dark}) {
         styles::ThemeManager::instance().setThemeAppearance(appearance);
         flushEvents();
@@ -955,21 +863,15 @@ void mainNavigationSearchThemesAndLanguages() {
                     ->styleSheet()
                     .contains(scheme.map.colorBorderSecondary.name(QColor::HexArgb)),
                 "compact version surface follows the neutral theme tokens");
-        require(!child<QLabel>(*page, "aboutLogo")->pixmap().isNull(), "render the Snow Shot icon");
-        auto* logo = child<QLabel>(*page, "aboutLogo");
-        require(qFuzzyCompare(logo->pixmap().devicePixelRatio(), logo->devicePixelRatioF()),
-                "the logo uses the current display pixel ratio");
+        require(child<QLabel>(*page, "aboutLogo")->isHidden(),
+                "the personal edition does not display the upstream logo");
         auto* artwork = child<QWidget>(*page, "aboutArtwork");
         const QImage hero = child<QWidget>(*page, "aboutHero")->grab().toImage();
-        const QImage renderedArtwork = artwork->grab().toImage();
-        require(!renderedArtwork.isNull() && !artwork->accessibleName().isEmpty(),
-                "the embedded artwork is rendered and has an accessible name");
+        require(artwork->isHidden(), "the upstream branded artwork is hidden");
         if (!previousHero.isNull()) {
-            require(hero != previousHero && renderedArtwork != previousArtwork,
-                    "both the hero surface and artwork adapt to dark mode");
+            require(hero != previousHero, "the hero surface adapts to dark mode");
         }
         previousHero = hero;
-        previousArtwork = renderedArtwork;
         snapshot(window, appearance == styles::ThemeAppearance::Light
                              ? QStringLiteral("about-light")
                              : QStringLiteral("about-dark"));
@@ -988,7 +890,8 @@ void mainNavigationSearchThemesAndLanguages() {
                     expectedTranslation(translator, locale, "SidebarWidget", "Search function"),
                 "sidebar search retranslates with each application catalog");
         const QString translatedTitle =
-            expectedTranslation(translator, locale, "AboutPageWidget", "About Snow Shot");
+            expectedTranslation(translator, locale, "AboutPageWidget", "About %1")
+                .arg(snow_shot::app::edition::productName());
         require(!translatedTitle.isEmpty() && page->accessibleName() == translatedTitle,
                 "an open About page retranslates immediately");
         require(child<QLabel>(*page, "aboutVersionValue")->text() ==
@@ -1023,11 +926,12 @@ void mainNavigationSearchThemesAndLanguages() {
         require(child<QLabel>(*page, "aboutTagline")
                     ->text()
                     .contains(expectedTranslation(translator, locale, "AboutPageWidget",
-                                                  "Elegant screenshots")),
-                "the two-tone headline retranslates");
+                                                  "Based on Snow Shot")),
+                "the upstream attribution retranslates");
         require(child<QLabel>(*page, "aboutSlogan")->text() ==
                     expectedTranslation(translator, locale, "AboutPageWidget",
-                                        "Snow Shot · make expression clearer"),
+                                        "%1 · Make expression clearer")
+                        .arg(snow_shot::app::edition::productName()),
                 "the footer slogan retranslates");
         const std::array<const char*, 6> features{"Screenshot capture", "Easy annotation",
                                                   "Text recognition",   "Screen recording",
@@ -1041,36 +945,15 @@ void mainNavigationSearchThemesAndLanguages() {
             auto* icon = page->findChild<QLabel*>(QStringLiteral("aboutFeatureIcon%1").arg(i));
             require(icon != nullptr && !icon->pixmap().isNull(), "every feature icon renders");
         }
-        require(child<QAbstractButton>(*page, "aboutWebsite")->accessibleName() ==
-                        expectedTranslation(translator, locale, "AboutPageWidget",
-                                            "Official website") &&
-                    child<QWidget>(*page, "aboutArtwork")->accessibleName() ==
-                        expectedTranslation(
-                            translator, locale, "AboutPageWidget",
-                            "Screenshot selection, annotation tools, and recognized text"),
-                "resource and illustration accessibility copy follows the active language");
-        struct QqGroupCopy {
-            const char* objectName;
-            const char* title;
-            const char* number;
-        };
-        const std::array<QqGroupCopy, 2> qqGroups{{
-            {"aboutQqGroup3", "QQ group 3", "1037819112"},
-            {"aboutQqGroup4", "QQ group 4", "1131891935"},
-        }};
-        for (const auto& group : qqGroups) {
-            const QString title =
-                expectedTranslation(translator, locale, "AboutPageWidget", group.title);
-            const QString description = expectedTranslation(translator, locale, "AboutPageWidget",
-                                                            "Discussion and support · group no. %1")
-                                            .arg(QString::fromLatin1(group.number));
-            auto* button = child<QAbstractButton>(*page, group.objectName);
-            require(button->accessibleName() == title &&
-                        button->accessibleDescription() == description,
-                    "QQ group cards retranslate their title and description");
-            const QByteArray labelName = QByteArray(group.objectName) + "Description";
-            require(child<QLabel>(*button, labelName.constData())->text() == description,
-                    "QQ group cards display the translated description with the group number");
+        require(child<QWidget>(*page, "aboutArtwork")->accessibleName() ==
+                    expectedTranslation(
+                        translator, locale, "AboutPageWidget",
+                        "Screenshot selection, annotation tools, and recognized text"),
+                "illustration accessibility copy follows the active language");
+        for (const char* name : {"aboutWebsite", "aboutSourceCode", "aboutFeedback", "aboutQqGroup3",
+                                 "aboutQqGroup4"}) {
+            require(page->findChild<QObject*>(QString::fromLatin1(name)) == nullptr,
+                    "removed project and community cards stay absent after language changes");
         }
         require(sidebar->currentRoute() == QStringLiteral("/about"),
                 "translated navigation preserves About selection");
@@ -1137,7 +1020,6 @@ int main(int argc, char** argv) {
     versionIsExactSelectableAndCopyable();
     absentVersionDoesNotInventARelease();
     stableVersionsDoNotClaimToBePreviews();
-    projectLinkSurfacesMatchStandardButtons();
     projectLinksAreExplicitAccessibleAndRecoverable();
     storeUpdatesOpenMicrosoftStore();
     updatePolicyAndUnavailableCopy();

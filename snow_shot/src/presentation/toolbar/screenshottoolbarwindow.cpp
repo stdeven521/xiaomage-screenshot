@@ -4,6 +4,7 @@
 #include "snow_shot/presentation/screenshotcanvastoolstyles.h"
 #include "snow_shot/presentation/screenshotstylebinding.h"
 #include "snow_shot/presentation/screenshottoolbarcommands.h"
+#include "snow_shot/presentation/screenshottoolbarlayoutmodel.h"
 #include "snow_shot/presentation/screenshottoolpalette.h"
 #include "snow_shot/presentation/screenshottoolpalettehost.h"
 #include "snow_shot/storage/applicationstorage.h"
@@ -20,9 +21,10 @@
 namespace {
 ScreenshotToolPalette::Options screenshotToolbarOptions() {
     ScreenshotToolPalette::Options options;
+    options.screenshotCompatibility = true;
     options.showDragHandle = true;
     options.showHistoryActions = true;
-    options.showMoveTool = true;
+    options.showMoveTool = false;
     options.enableMoveOptionsToolbar = true;
     options.showSelectTool = true;
     options.showShapeTool = true;
@@ -108,7 +110,9 @@ ScreenshotToolbarWindow::ScreenshotToolbarWindow(ScreenshotToolbarCommandSink& c
 void ScreenshotToolbarWindow::setActionToolsLayout(
     const snow_shot::storage::ScreenshotToolbarLayout& layout) {
     if (ScreenshotToolPalette* toolPalette = palette()) {
-        toolPalette->setActionToolsLayout(layout);
+        toolPalette->setActionToolsLayout(
+            snow_shot::presentation::toolbar_layout::qqScreenshotLayoutForSettings(
+                layout, snow_shot::storage::ScreenshotToolbarLayoutKind::ActionTools));
     }
 }
 
@@ -124,7 +128,9 @@ void ScreenshotToolbarWindow::setToolbarSize(const QString& size) {
 void ScreenshotToolbarWindow::setToolbarLayout(
     const snow_shot::storage::ScreenshotToolbarLayout& layout) {
     if (ScreenshotToolPalette* toolPalette = palette()) {
-        toolPalette->setToolbarLayout(layout);
+        toolPalette->setToolbarLayout(
+            snow_shot::presentation::toolbar_layout::qqScreenshotLayoutForSettings(
+                layout, snow_shot::storage::ScreenshotToolbarLayoutKind::DrawingTools));
     }
 }
 

@@ -2,11 +2,8 @@ set(USE_QT_VERSION "6")
 
 if(VCPKG_TARGET_IS_WINDOWS)
     vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
-    # Snow Shot links the static Qt kit and therefore uses the static CRT even
-    # in its debug preset. OpenCV is linked into that executable directly, so
-    # the library must match the static CRT or every std::string/std::vector
-    # returned by the decoders would cross CRT heap boundaries.
-    set(VCPKG_CRT_LINKAGE static)
+    # Static library linkage is independent of the CRT. Match the triplet so
+    # shared-Qt builds use /MD(d) and static-Qt builds use /MT(d).
 endif()
 
 # fix to get version from eigen after v3.4.0
@@ -42,8 +39,7 @@ vcpkg_from_github(
       "${PATCH1_FILE}"
 )
 # Disallow accidental build of vendored copies. 3rdparty/protobuf is the one
-# exception: the dnn module consumes it, and vcpkg's protobuf is a shared-CRT
-# package that cannot be linked into Snow Shot's static-CRT executables.
+# exception: build it with OpenCV so its CRT matches the selected triplet too.
 file(GLOB third_party "${SOURCE_PATH}/3rdparty/*")
 list(FILTER third_party EXCLUDE REGEX "/ippicv\$")
 list(FILTER third_party EXCLUDE REGEX "/protobuf\$")
@@ -431,9 +427,8 @@ vcpkg_cmake_configure(
         -DBUILD_OPENEXR=OFF
         -DBUILD_OPENJPEG=OFF
         -DBUILD_PNG=OFF
-        # Snow Apps overlay: build OpenCV's bundled protobuf. The vcpkg
-        # protobuf package is a shared-CRT DLL on this triplet and cannot be
-        # linked into Snow Shot's static-CRT executables.
+        # Snow Apps overlay: keep protobuf in the same build and CRT profile
+        # as OpenCV for both shared-Qt and static-Qt executables.
         -DBUILD_PROTOBUF=ON
         -DBUILD_TBB=OFF
         -DBUILD_TIFF=OFF

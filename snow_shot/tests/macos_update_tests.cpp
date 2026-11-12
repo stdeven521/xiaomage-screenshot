@@ -648,6 +648,33 @@ void schedulingAndFailures() {
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    {
+        Server github;
+        Server gitee;
+        auto value = options(github, gitee);
+        value.enabled = false;
+        value.startupCheckDelay = 0ms;
+        UpdateService service(std::move(value));
+        service.setMode(QStringLiteral("check"));
+        service.start();
+        service.check();
+        service.check(false);
+        service.download();
+        service.beginApply();
+        service.applyAtStartup();
+        service.requestRestart();
+        const auto capabilities = service.capabilities();
+        require(!capabilities.check && !capabilities.download && !capabilities.install &&
+                    !service.busy() && service.status().state == UpdateState::Unavailable,
+                "personal distribution has no upstream update capabilities");
+        for (auto* timer : service.findChildren<QTimer*>())
+            require(!timer->isActive(), "disabled updates schedule no background requests");
+        QCoreApplication::processEvents();
+        require(github.requests.isEmpty() && gitee.requests.isEmpty(),
+                "disabled updates never contact release servers");
+    }
+    if (app.arguments().contains(QStringLiteral("--personal-update-policy-only")))
+        return 0;
 #if defined(Q_OS_MACOS)
     responseMemoryIsReleased();
 #endif

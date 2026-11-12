@@ -41,7 +41,7 @@ inline constexpr bool extendedFeatures = SNOW_SHOT_ENABLE_EXTENDED_FEATURES != 0
 
 [[nodiscard]] inline QString productName() {
     return isMini ? QCoreApplication::translate("EditionMetadata", "Snow Shot Mini")
-                  : QCoreApplication::translate("EditionMetadata", "Snow Shot");
+                  : QCoreApplication::translate("EditionMetadata", "Xiaomage's Screenshot Tool");
 }
 [[nodiscard]] inline QString applicationName() {
     return isMini ? QStringLiteral("snow_shot_mini") : QStringLiteral("snow_shot");

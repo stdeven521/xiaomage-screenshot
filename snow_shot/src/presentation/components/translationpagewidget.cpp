@@ -86,7 +86,7 @@ TranslationPageWidget::TranslationPageWidget(QWidget* parent, SnowShotApiClient*
     setAutoFillBackground(false);
     const auto& metric = m_scheme.metricAlias;
     if (client == nullptr) {
-        client = new SnowShotApiClient(SnowShotApiClient::configuredBaseUrl(), this);
+        client = new SnowShotApiClient(QString(), this);
     }
     m_controller = new translation::TranslationPageController(
         *client, snow_shot::storage::ApplicationStorage::instance().configuration(),

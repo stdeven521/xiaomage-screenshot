@@ -1,6 +1,5 @@
 #include "snow_shot/app/edition.h"
 #include "snow_shot/presentation/components/aboutpagewidget.h"
-#include "widgets/detail/pointer_region.h"
 
 #include "snow_shot/presentation/components/icons/snowshoticons.h"
 #include "snow_shot/presentation/components/pagecontainerwidget.h"
@@ -12,7 +11,6 @@
 #include "antd_icons.h"
 #include "icon_renderer.h"
 #include "widgets/button.h"
-#include "widgets/button_style.h"
 #include "widgets/divider.h"
 #include "theme/theme.h"
 #include "widgets/scroll_area.h"
@@ -202,111 +200,6 @@ class AboutArtwork final : public QWidget {
     QSvgRenderer m_renderer;
 };
 
-class AboutResourceButton final : public AdButton {
-  public:
-    AboutResourceButton(const QString& objectName, const adqt::icons::IconRef& icon,
-                        QWidget* parent)
-        : AdButton(parent), m_icon(icon) {
-        setObjectName(objectName);
-        setButtonStyle(ButtonStyle::Outline);
-        setAccentRole(AccentRole::Neutral);
-        setShape(Shape::Rounded);
-        setFocusPolicy(Qt::StrongFocus);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        auto* row = new QHBoxLayout(this);
-        m_iconLabel = new QLabel(this);
-        row->addWidget(m_iconLabel, 0, Qt::AlignVCenter);
-        auto* copy = new QVBoxLayout;
-        copy->setSpacing(3);
-        m_title = aboutLabel(objectName + QStringLiteral("Title"), this);
-        m_description = aboutLabel(objectName + QStringLiteral("Description"), this);
-        copy->addWidget(m_title);
-        copy->addWidget(m_description);
-        row->addLayout(copy, 1);
-        m_arrow = new QLabel(this);
-        row->addWidget(m_arrow, 0, Qt::AlignTop);
-        for (QLabel* label : {m_iconLabel, m_title, m_description, m_arrow}) {
-            label->setAttribute(Qt::WA_TransparentForMouseEvents);
-        }
-    }
-
-    void setCopy(const QString& title, const QString& description, const QUrl& url) {
-        setAccessibleName(title);
-        setAccessibleDescription(description);
-        setToolTip(url.toDisplayString());
-        m_title->setText(title);
-        m_description->setText(description);
-    }
-
-    void setTheme(const styles::ThemeColorScheme& scheme) {
-        m_scheme = scheme;
-        const auto& metric = scheme.metricAlias;
-        layout()->setContentsMargins(metric.paddingSM, metric.paddingXS, metric.paddingSM,
-                                     metric.paddingXS);
-        layout()->setSpacing(metric.paddingSM);
-        styleAboutLabel(m_title, metric.fontSizeSM, QFont::DemiBold, scheme.map.colorText);
-        styleAboutLabel(m_description, metric.fontSizeSM - 2, QFont::Normal, scheme.map.colorText);
-        const QSize iconSize(metric.fontSizeLG, metric.fontSizeLG);
-        m_iconLabel->setFixedSize(iconSize);
-        m_iconLabel->setPixmap(aboutIcon(m_icon, iconSize, this, scheme.map.colorTextSecondary));
-        m_arrow->setFixedSize(metric.fontSizeSM, metric.fontSizeSM);
-        m_arrow->setPixmap(
-            aboutIcon(outlined::Export(), m_arrow->size(), this, scheme.map.colorTextTertiary));
-        m_contentColor = {};
-        updateGeometry();
-        update();
-    }
-
-    QSize sizeHint() const override {
-        return layout()->sizeHint();
-    }
-    QSize minimumSizeHint() const override {
-        return {0, layout()->minimumSize().height()};
-    }
-
-  protected:
-    void hideEvent(QHideEvent* event) override {
-
-        AdButton::hideEvent(event);
-    }
-
-    void paintEvent(QPaintEvent* event) override {
-        // AdButton owns the surface, focus ring and click wave. Only the multiline
-        // child content needs its colors synchronized with the standard button state.
-        adqt::widgets::detail::ButtonStyleInput input;
-        input.buttonStyle = buttonStyle();
-        input.accentRole = accentRole();
-        input.sizeClass = sizeClass();
-        input.baseFont = font();
-        const auto visual = adqt::widgets::detail::resolveButtonVisualStyle(
-            input, adqt::theme::ThemeManager::instance().resolve(this));
-        const auto& state = !isEnabled()                                 ? visual.disabled
-                            : isDown()                                   ? visual.active
-                            : adqt::widgets::detail::widgetHovered(this) ? visual.hover
-                                                                         : visual.normal;
-        if (m_contentColor != state.text || m_contentDpr != devicePixelRatioF()) {
-            m_contentColor = state.text;
-            m_contentDpr = devicePixelRatioF();
-            const auto& metric = m_scheme.metricAlias;
-            styleAboutLabel(m_title, metric.fontSizeSM, QFont::DemiBold, state.text);
-            styleAboutLabel(m_description, metric.fontSizeSM - 2, QFont::Normal, state.text);
-            m_iconLabel->setPixmap(aboutIcon(m_icon, m_iconLabel->size(), this, state.text));
-            m_arrow->setPixmap(aboutIcon(outlined::Export(), m_arrow->size(), this, state.text));
-        }
-        AdButton::paintEvent(event);
-    }
-
-  private:
-    adqt::icons::IconRef m_icon;
-    QLabel* m_iconLabel = nullptr;
-    QLabel* m_title = nullptr;
-    QLabel* m_description = nullptr;
-    QLabel* m_arrow = nullptr;
-    styles::ThemeColorScheme m_scheme;
-    QColor m_contentColor;
-    qreal m_contentDpr = 0;
-};
-
 QUrl aboutProjectUrl(const QString& suffix = {}) {
     QUrl url(QStringLiteral(SNOW_SHOT_PROJECT_URL));
     QString path = url.path();
@@ -368,8 +261,6 @@ struct AboutPageWidget::Ui {
     AdButton* updateCancel = nullptr;
     QWidget* updateActionBlank = nullptr;
     QStackedLayout* updateActions = nullptr;
-    QGridLayout* resourceLayout = nullptr;
-    std::array<AboutResourceButton*, 5> resources{};
     QLabel* linkError = nullptr;
     AdDivider* footerDivider = nullptr;
     QBoxLayout* footerLayout = nullptr;
@@ -379,7 +270,6 @@ struct AboutPageWidget::Ui {
     QLabel* copyright = nullptr;
     QLabel* slogan = nullptr;
     int featureColumns = 0;
-    int resourceColumns = 0;
 };
 
 AboutPageWidget::AboutPageWidget(QWidget* parent, UrlOpener urlOpener,
@@ -413,8 +303,9 @@ AboutPageWidget::AboutPageWidget(QWidget* parent, UrlOpener urlOpener,
     m_ui->logo = new QLabel(m_ui->heroCopy);
     m_ui->logo->setObjectName(QStringLiteral("aboutLogo"));
     m_ui->identityLayout->addWidget(m_ui->logo, 0, Qt::AlignVCenter);
+    m_ui->logo->setVisible(snow_shot::app::edition::isMini);
     m_ui->productName = aboutLabel(QStringLiteral("aboutProductName"), m_ui->heroCopy);
-    m_ui->productName->setWordWrap(false);
+    m_ui->productName->setWordWrap(true);
     m_ui->productName->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
     m_ui->identityLayout->addWidget(m_ui->productName, 0, Qt::AlignVCenter);
     m_ui->openSource = aboutLabel(QStringLiteral("aboutOpenSource"), m_ui->heroCopy);
@@ -430,6 +321,7 @@ AboutPageWidget::AboutPageWidget(QWidget* parent, UrlOpener urlOpener,
     m_ui->heroLayout->addWidget(m_ui->heroCopy, 1);
     m_ui->artwork = new AboutArtwork(m_ui->hero);
     m_ui->heroLayout->addWidget(m_ui->artwork, 0, Qt::AlignCenter);
+    m_ui->artwork->setVisible(snow_shot::app::edition::isMini);
     layout->addWidget(m_ui->hero);
 
     m_ui->body = new QWidget(content);
@@ -583,14 +475,6 @@ AboutPageWidget::AboutPageWidget(QWidget* parent, UrlOpener urlOpener,
         });
     }
 
-    m_ui->resourceLayout = new QGridLayout;
-    m_ui->resources = {
-        new AboutResourceButton(QStringLiteral("aboutWebsite"), outlined::Global(), m_ui->body),
-        new AboutResourceButton(QStringLiteral("aboutSourceCode"), outlined::Code(), m_ui->body),
-        new AboutResourceButton(QStringLiteral("aboutFeedback"), outlined::Comment(), m_ui->body),
-        new AboutResourceButton(QStringLiteral("aboutQqGroup3"), outlined::Qq(), m_ui->body),
-        new AboutResourceButton(QStringLiteral("aboutQqGroup4"), outlined::Qq(), m_ui->body)};
-    m_ui->bodyLayout->addLayout(m_ui->resourceLayout);
     m_ui->linkError = aboutLabel(QStringLiteral("aboutLinkError"), m_ui->body);
     m_ui->linkError->setTextInteractionFlags(Qt::TextSelectableByMouse |
                                              Qt::TextSelectableByKeyboard);
@@ -659,16 +543,6 @@ AboutPageWidget::AboutPageWidget(QWidget* parent, UrlOpener urlOpener,
     connect(m_ui->copyFeedbackTimer, &QTimer::timeout, this, &AboutPageWidget::retranslateUi);
     connect(m_ui->releaseNotes, &AdButton::clicked, this,
             [this]() { openProjectLink(aboutProjectUrl(QStringLiteral("/releases"))); });
-    connect(m_ui->resources[0], &QAbstractButton::clicked, this,
-            [this]() { openProjectLink(QUrl(QStringLiteral(SNOW_SHOT_WEBSITE_URL))); });
-    connect(m_ui->resources[1], &QAbstractButton::clicked, this,
-            [this]() { openProjectLink(aboutProjectUrl()); });
-    connect(m_ui->resources[2], &QAbstractButton::clicked, this,
-            [this]() { openProjectLink(aboutProjectUrl(QStringLiteral("/issues"))); });
-    connect(m_ui->resources[3], &QAbstractButton::clicked, this,
-            [this]() { openProjectLink(QUrl(QStringLiteral(SNOW_SHOT_QQ_GROUP_3_URL))); });
-    connect(m_ui->resources[4], &QAbstractButton::clicked, this,
-            [this]() { openProjectLink(QUrl(QStringLiteral(SNOW_SHOT_QQ_GROUP_4_URL))); });
     connect(m_ui->privacyPolicy, &AdButton::clicked, this,
             [this] { openProjectLink(QUrl(snow_shot::app::distribution::privacyPolicyUrl())); });
     connect(m_ui->userAgreement, &AdButton::clicked, this,
@@ -705,8 +579,6 @@ void AboutPageWidget::applyTheme(const styles::ThemeColorScheme& scheme) {
     m_ui->bodyLayout->setSpacing(0);
     m_ui->featureLayout->setHorizontalSpacing(metric.paddingXS);
     m_ui->featureLayout->setVerticalSpacing(metric.paddingSM);
-    m_ui->resourceLayout->setSpacing(metric.paddingSM);
-    m_ui->resourceLayout->setContentsMargins(0, metric.paddingXS, 0, 0);
     m_ui->linkError->setContentsMargins(0, metric.paddingXS, 0, metric.paddingXS);
     m_ui->footerLayout->setSpacing(metric.paddingSM);
     m_ui->versionPanelLayout->setContentsMargins(metric.padding, metric.paddingXXS, metric.padding,
@@ -773,9 +645,6 @@ void AboutPageWidget::applyTheme(const styles::ThemeColorScheme& scheme) {
             aboutIcon(m_ui->featureRefs[i], m_ui->featureIcons[i]->size(), this, tones[i]));
         styleAboutLabel(m_ui->featureLabels[i], metric.fontSizeSM, QFont::Normal, colors.colorText);
     }
-    for (auto* resource : m_ui->resources) {
-        resource->setTheme(scheme);
-    }
     retranslateUi();
 }
 
@@ -831,9 +700,7 @@ void AboutPageWidget::updateBackgroundStyles() {
 void AboutPageWidget::retranslateUi() {
     refreshUpdateStatus();
     const bool hasVersion = !m_version.trimmed().isEmpty();
-    setAccessibleName(snow_shot::app::edition::isMini
-                          ? tr("About %1").arg(snow_shot::app::edition::productName())
-                          : tr("About Snow Shot"));
+    setAccessibleName(tr("About %1").arg(snow_shot::app::edition::productName()));
     m_ui->productName->setText(snow_shot::app::edition::productName());
     m_ui->logo->setAccessibleName(snow_shot::app::edition::isMini
                                       ? tr("%1 logo").arg(snow_shot::app::edition::productName())
@@ -841,9 +708,13 @@ void AboutPageWidget::retranslateUi() {
     m_ui->openSource->setText(tr("Free · open source"));
     const QColor violet(m_ui->scheme.appearance == styles::ThemeAppearance::Dark ? "#b58aec"
                                                                                  : "#7052d8");
-    m_ui->tagline->setText(QStringLiteral("<span style=\"color:%1\">%2</span>%3")
-                               .arg(violet.name(), tr("Elegant screenshots").toHtmlEscaped(),
-                                    tr(", excellent work").toHtmlEscaped()));
+    m_ui->tagline->setText(
+        snow_shot::app::edition::isMini
+            ? QStringLiteral("<span style=\"color:%1\">%2</span>%3")
+                  .arg(violet.name(), tr("Elegant screenshots").toHtmlEscaped(),
+                       tr(", excellent work").toHtmlEscaped())
+            : QStringLiteral("<span style=\"color:%1\">%2</span>")
+                  .arg(violet.name(), tr("Based on Snow Shot").toHtmlEscaped()));
     m_ui->description->setText(
         tr("Capture, annotate, recognize text, and record your screen,\n"
            "so every moment on screen can be expressed clearly and shared easily"));
@@ -871,22 +742,6 @@ void AboutPageWidget::retranslateUi() {
     m_ui->releaseNotes->setText(tr("Changelog"));
     m_ui->releaseNotes->setAccessibleName(tr("Changelog"));
     m_ui->releaseNotes->setToolTip(aboutProjectUrl(QStringLiteral("/releases")).toDisplayString());
-    m_ui->resources[0]->setCopy(tr("Official website"),
-                                tr("Discover more features and ways to use it"),
-                                QUrl(QStringLiteral(SNOW_SHOT_WEBSITE_URL)));
-    m_ui->resources[1]->setCopy(tr("GitHub"), tr("View the source and improve it together"),
-                                aboutProjectUrl());
-    m_ui->resources[2]->setCopy(tr("Feedback and suggestions"),
-                                tr("Make the next experience better"),
-                                aboutProjectUrl(QStringLiteral("/issues")));
-    m_ui->resources[3]->setCopy(
-        tr("QQ group 3"),
-        tr("Discussion and support · group no. %1").arg(QStringLiteral("1037819112")),
-        QUrl(QStringLiteral(SNOW_SHOT_QQ_GROUP_3_URL)));
-    m_ui->resources[4]->setCopy(
-        tr("QQ group 4"),
-        tr("Discussion and support · group no. %1").arg(QStringLiteral("1131891935")),
-        QUrl(QStringLiteral(SNOW_SHOT_QQ_GROUP_4_URL)));
     m_ui->community->setText(tr("Built for daily work, and growing with the community"));
     m_ui->license->setText(
         tr("%1 · %2").arg(tr("GNU General Public License v3.0 or later"),
@@ -902,9 +757,7 @@ void AboutPageWidget::retranslateUi() {
     m_ui->copyright->setText(
         tr("Copyright © %1 %2").arg(QStringLiteral("2025–2026"), QStringLiteral("mg-chao")));
     m_ui->slogan->setText(
-        snow_shot::app::edition::isMini
-            ? tr("%1 · Make expression clearer").arg(snow_shot::app::edition::productName())
-            : tr("Snow Shot · make expression clearer"));
+        tr("%1 · Make expression clearer").arg(snow_shot::app::edition::productName()));
     m_ui->linkError->setText(m_failedUrl.isEmpty()
                                  ? QString()
                                  : tr("Could not open the link. Open %1 in your browser")
@@ -969,31 +822,6 @@ void AboutPageWidget::updateLayout() {
         separator->setVisible(!lastInRow);
         separator->setFixedHeight(separatorHeight);
     }
-    // Wide layouts share a six-column grid: the three project links span two columns each
-    // and the two QQ group cards span three columns each in the second row. Narrow layouts stack.
-    const int resourceColumns = wide ? 6 : 1;
-    if (m_ui->resourceColumns != resourceColumns) {
-        for (auto* resource : m_ui->resources) {
-            m_ui->resourceLayout->removeWidget(resource);
-        }
-        for (int i = 0; i < 6; ++i) {
-            m_ui->resourceLayout->setColumnStretch(i, i < resourceColumns ? 1 : 0);
-        }
-        if (wide) {
-            for (int i = 0; i < 3; ++i) {
-                m_ui->resourceLayout->addWidget(m_ui->resources[static_cast<size_t>(i)], 0, i * 2,
-                                                1, 2);
-            }
-            m_ui->resourceLayout->addWidget(m_ui->resources[3], 1, 0, 1, 3);
-            m_ui->resourceLayout->addWidget(m_ui->resources[4], 1, 3, 1, 3);
-        } else {
-            for (size_t i = 0; i < m_ui->resources.size(); ++i) {
-                m_ui->resourceLayout->addWidget(m_ui->resources[i], static_cast<int>(i), 0);
-            }
-        }
-        m_ui->resourceColumns = resourceColumns;
-    }
-
     int artHeight = qRound(artWidth * 340.0 / 460.0);
     if (wide) {
         // The scroll area uses the content's preferred height. Budget decorative artwork

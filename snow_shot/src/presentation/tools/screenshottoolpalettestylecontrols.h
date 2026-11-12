@@ -198,7 +198,8 @@ class ScreenshotToolPaletteStyleControls final {
   public:
     explicit ScreenshotToolPaletteStyleControls(
         ScreenshotToolPaletteStyleControlCallbacks callbacks,
-        const SnowCanvasStyleDefaults& defaults, std::function<QDateTime()> watermarkTemplateClock);
+        const SnowCanvasStyleDefaults& defaults, std::function<QDateTime()> watermarkTemplateClock,
+        bool screenshotCompatibility = false);
     ~ScreenshotToolPaletteStyleControls();
 
     [[nodiscard]] ScreenshotToolPaletteStyleState& styleState();
@@ -541,6 +542,7 @@ class ScreenshotToolPaletteStyleControls final {
     void releaseControlCallbacksExcept(QWidget* retainedControls);
 
     ScreenshotToolPaletteStyleState m_state;
+    const bool m_screenshotCompatibility;
     ScreenshotToolPaletteStyleControlCallbacks m_callbacks;
     const SnowCanvasStyleDefaults m_defaults;
     std::optional<QColor> m_sharedCreationColor;

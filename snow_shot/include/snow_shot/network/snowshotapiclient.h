@@ -219,7 +219,8 @@ class SnowShotApiClient final : public QObject {
     [[nodiscard]] static QImage prepareImage(const QImage& image);
     [[nodiscard]] static QByteArray encodeWebp(const QImage& image);
     [[nodiscard]] static QString formatFailure(int httpStatus, const QString& failureCode,
-                                               const QString& description);
+                                               const QString& description,
+                                               bool accountService = true);
 
   private:
     friend class SnowShotApiClientTestAccess;

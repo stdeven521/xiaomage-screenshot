@@ -352,6 +352,13 @@ function(snow_add_rust_static_libraries batch_name)
             set_target_properties("${_target_name}" PROPERTIES
                 IMPORTED_LOCATION "${_static_library}")
         endif()
+        if(WIN32)
+            # Rust staticlibs contain std but do not carry its system-library
+            # link requirements into a C++ host. Keep those dependencies on the
+            # imported archive so every direct or transitive consumer gets them.
+            target_link_libraries("${_target_name}" INTERFACE
+                advapi32 bcrypt kernel32 ntdll userenv ws2_32)
+        endif()
         add_dependencies("${_target_name}" "${batch_name}_build")
     endforeach()
 endfunction()

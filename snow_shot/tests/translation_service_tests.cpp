@@ -12,6 +12,81 @@ using namespace snow_shot::translation;
 using snow_shot::storage::ConfigurationStore;
 
 namespace {
+void localModelsTranslateWithoutAccounts(const QString& directory) {
+    Server oldServer;
+    Server custom;
+    custom.streamPath = QByteArrayLiteral("/v1/chat/completions");
+    const snow_shot::CustomAiModelConfiguration model{
+        QStringLiteral("77777777-7777-4777-8777-777777777777"),
+        QStringLiteral("Personal model"),
+        custom.url() + QStringLiteral("/v1"),
+        QStringLiteral("personal-api-key"),
+        QStringLiteral("personal-provider-model"),
+        false};
+    ConfigurationStore settings(directory + QStringLiteral("/accountless.json"), true, true, 60000);
+    require(
+        settings.setValue(QStringLiteral("api_configuration/server_url"), oldServer.url()) &&
+            settings.setValue(QStringLiteral("api_configuration/custom_models"),
+                              snow_shot::customAiModelsToJson({model})) &&
+            settings.setValue(QStringLiteral("screenshot_translation/model"), model.selectionId()),
+        "save a custom model alongside a legacy official server setting");
+    SnowShotApiClient client{QString()};
+    auto& service = TranslationService::forClient(client, settings, QLocale::English);
+    service.refreshModels();
+    require(client.baseUrl().isEmpty() && !service.loadingModels() &&
+                service.errorText().isEmpty() && service.models().size() == 2 &&
+                service.preferences().modelId == model.selectionId(),
+            "local catalog includes custom and free translation without account discovery");
+    require(settings.setValue(QStringLiteral("api_configuration/server_url"),
+                              oldServer.url() + QStringLiteral("/imported")),
+            "import a changed legacy server preference");
+    flushEvents();
+    require(client.baseUrl().isEmpty() && oldServer.modelRequests == 0,
+            "legacy configuration cannot enable the official account service");
+    QObject owner;
+    auto preferences = service.preferences();
+    preferences.sourceLanguage = QStringLiteral("en");
+    preferences.targetLanguage = QStringLiteral("ja");
+    preferences.secondaryTargetLanguage.clear();
+    auto* job = service.createJob({QStringLiteral("Hello")}, preferences, &owner);
+    job->start();
+    waitUntil([&] { return custom.streams.size() == 1; },
+              "custom API receives the translation without signing in");
+    require(custom.streams.first().headers.contains("Authorization: Bearer personal-api-key") &&
+                custom.streams.first().body.value(QStringLiteral("model")) == model.model &&
+                custom.modelRequests == 0 && oldServer.modelRequests == 0,
+            "translation uses the configured endpoint, API key and provider model directly");
+    custom.delta(0, QStringLiteral("translated"));
+    custom.finish(0);
+    waitUntil([&] { return job->state() == TranslationJob::State::Completed; },
+              "accountless custom translation completes");
+    require(job->units().first().text == QStringLiteral("translated"),
+            "accountless translation delivers provider output");
+    custom.streamRejection = [](int) {
+        const QByteArray body = "{\"error\":{\"code\":\"insufficient_credits\",\"message\":"
+                                "\"Provider balance is low\"}}";
+        return QByteArray("HTTP/1.1 402 Payment Required\r\nContent-Type: application/json\r\n") +
+               "Content-Length: " + QByteArray::number(body.size()) +
+               "\r\nConnection: close\r\n\r\n" + body;
+    };
+    auto* rejected = service.createJob({QStringLiteral("Another input")}, preferences, &owner);
+    rejected->start();
+    waitUntil([&] { return rejected->state() == TranslationJob::State::Failed; },
+              "custom provider failure completes without an account workflow");
+    require(rejected->errorText().contains(QStringLiteral("Provider balance is low")) &&
+                !rejected->errorText().contains(QStringLiteral("Account")),
+            "custom API credit errors do not direct users to the removed Snow Shot account page");
+
+    for (const QString& oldModel : {QStringLiteral("ai-model"), QStringLiteral("qwen3.8-flash")}) {
+        require(settings.setValue(QStringLiteral("screenshot_translation/model"), oldModel),
+                "load an old account model preference");
+        service.refreshModels();
+        require(service.preferences().modelId == QStringLiteral("free-translation") &&
+                    !service.loadingModels() && service.errorText().isEmpty(),
+                "unavailable old account models resolve to an available service");
+    }
+}
+
 QByteArray rateLimitResponse(const QByteArray& code = "rate_limited",
                              const QByteArray& retryAfter = "1") {
     const QByteArray body = "{\"code\":\"" + code +
@@ -1526,6 +1601,9 @@ int main(int argc, char** argv) {
     QCoreApplication application(argc, argv);
     QTemporaryDir directory;
     require(directory.isValid(), "isolated translation service settings");
+    localModelsTranslateWithoutAccounts(directory.path());
+    if (application.arguments().contains(QStringLiteral("--local-models-only")))
+        return 0;
     preferenceAndCatalogPublicationPermitServiceDeletion(directory.path());
     nestedPreferenceSaveSupersedesPublication(directory.path());
     catalogMetadataChangesPreservePreferenceWrites(directory.path());

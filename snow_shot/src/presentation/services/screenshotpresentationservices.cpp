@@ -300,6 +300,8 @@ qint64 ScreenshotPresentationServices::nowNanoseconds() const {
 }
 
 void ScreenshotPresentationServices::resetPresentation() {
+    if (m_context.presentCaptureModes)
+        m_context.presentCaptureModes(nullptr);
     m_state->scheduler->stop();
     m_state->frameClock.reset();
     discardColorPickerPresentation();
@@ -386,6 +388,14 @@ ScreenshotPresentationServices::Preparation ScreenshotPresentationServices::prep
         !m_state->initialized || m_state->sessionId != m_context.captureState.sessionId;
     if (newSession)
         resetPresentation();
+    if (m_context.presentCaptureModes) {
+        auto* owner = m_context.displaySession.startupOverlay();
+        if (!owner)
+            owner = m_context.displaySession.overlayForDisplay(
+                m_context.geometry.displayForLogicalPoint(
+                    m_context.displaySession, m_context.displaySession.logicalCursorPosition()));
+        m_context.presentCaptureModes(owner);
+    }
     const auto lifecycle = presentationLifecycle(m_context);
     const bool lifecycleChanged = lifecycle != m_state->lifecycle;
     if (lifecycle.displayRevision != m_state->lifecycle.displayRevision)

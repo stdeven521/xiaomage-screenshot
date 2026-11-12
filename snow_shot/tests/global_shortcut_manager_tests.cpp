@@ -275,6 +275,54 @@ void clearAll(GlobalShortcutManager& manager) {
     }
 }
 
+#ifdef Q_OS_WIN
+void qqScreenshotDefaultReportsConflictsAndAllowsRebinding() {
+    constexpr auto action = GlobalShortcutAction::Screenshot;
+    const shortcuts::ShortcutBindingList qqDefault{QStringLiteral("Ctrl+Alt+A")};
+    const shortcuts::ShortcutBindingList customized{QStringLiteral("Ctrl+Shift+F9")};
+    const snow_shot::storage::ShortcutSettings settings;
+    require(settings.screenshot() == qqDefault,
+            "new Windows configurations must use the QQ screenshot shortcut");
+    {
+        auto backend = std::make_unique<FakeBackend>();
+        auto* input = backend.get();
+        input->failures.insert(
+            qqDefault.first().portableText,
+            {false, GlobalShortcutFailureReason::AlreadyInUse, ERROR_HOTKEY_ALREADY_REGISTERED});
+        GlobalShortcutManager manager(std::move(backend), nullptr, [] { return false; });
+        manager.initialize();
+        const auto failed = manager.state(action);
+        require(failed.status == GlobalShortcutStatus::Failed && failed.bindings.size() == 1 &&
+                    failed.bindings.first().failureReason ==
+                        GlobalShortcutFailureReason::AlreadyInUse &&
+                    failed.bindings.first().nativeErrorCode == ERROR_HOTKEY_ALREADY_REGISTERED &&
+                    settings.screenshot() == qqDefault,
+                "an occupied QQ shortcut must report failure without changing the configured key");
+        require(manager.setShortcuts(action, customized) &&
+                    manager.state(action).status == GlobalShortcutStatus::Registered &&
+                    settings.screenshot() == customized,
+                "the screenshot shortcut must remain editable after a registration conflict");
+        int activations = 0;
+        QObject::connect(&manager, &GlobalShortcutManager::activated, &manager,
+                         [&](GlobalShortcutAction received) {
+                             if (received == action)
+                                 ++activations;
+                         });
+        for (auto it = input->registrations.cbegin(); it != input->registrations.cend(); ++it) {
+            if (customized.contains(it.value()))
+                input->handler(it.key());
+        }
+        require(activations == 1, "the replacement shortcut must dispatch screenshot capture");
+    }
+    GlobalShortcutManager restored(std::make_unique<FakeBackend>(), nullptr, [] { return false; });
+    restored.initialize();
+    require(restored.state(action).shortcuts == customized &&
+                restored.state(action).status == GlobalShortcutStatus::Registered,
+            "manager recreation must preserve the configured screenshot shortcut");
+    require(restored.setShortcuts(action, qqDefault), "restore the isolated default fixture");
+}
+#endif
+
 void screenshotQuickActionShortcutsRegisterActivateAndPersist() {
     const std::array actions{GlobalShortcutAction::ScreenshotScrolling,
                              GlobalShortcutAction::ScreenshotSave,
@@ -1999,6 +2047,13 @@ int main(int argc, char** argv) {
         return success ? 0 : 1;
     }
 #endif
+#ifdef Q_OS_WIN
+    qqScreenshotDefaultReportsConflictsAndAllowsRebinding();
+#endif
+    if (application.arguments().contains(QStringLiteral("--qq-default-shortcut-only"))) {
+        storage.shutdown();
+        return 0;
+    }
     fullscreenGameFilterControlsRegistration();
     require(snow_shot::storage::GlobalShortcutSettings().setFullscreenWindowFilter(
                 QStringLiteral("all_windows")),

@@ -2,10 +2,7 @@
 # without escaping SDK include paths. Keep its source/patch set and escape only
 # the variables entering those literals (the workspace chainload adds SDK paths).
 set(_snow_upstream "${VCPKG_ROOT_DIR}/ports/crashpad")
-# Snow's Windows executables and OCR runtime use the static CRT.
-if(VCPKG_TARGET_IS_WINDOWS)
-    set(VCPKG_CRT_LINKAGE static)
-endif()
+# The client libraries share C++ objects with the app; preserve its triplet CRT.
 file(READ "${_snow_upstream}/portfile.cmake" _snow_port)
 string(REPLACE "z;zlib;zlibd" "z;zlib;zlibd;zlibstatic;zlibstaticd" _snow_port "${_snow_port}")
 foreach(_snow_patch fix-linux.patch fix-lib-name-conflict.patch crashpad-memset-errors-5758170.diff
@@ -31,8 +28,6 @@ set(_snow_escape [=[
             VCPKG_COMBINED_C_FLAGS_RELEASE VCPKG_COMBINED_CXX_FLAGS_RELEASE
             VCPKG_COMBINED_SHARED_LINKER_FLAGS_DEBUG VCPKG_COMBINED_SHARED_LINKER_FLAGS_RELEASE
             VCPKG_COMBINED_STATIC_LINKER_FLAGS_DEBUG VCPKG_COMBINED_STATIC_LINKER_FLAGS_RELEASE)
-        string(REPLACE "-MD" "-MT" ${_snow_flags} "${${_snow_flags}}")
-        string(REPLACE "/MD" "/MT" ${_snow_flags} "${${_snow_flags}}")
         string(REGEX REPLACE "[-/]GL([ ;]|$)" "/GL-\\1" ${_snow_flags} "${${_snow_flags}}")
         string(REPLACE "\\" "\\\\" ${_snow_flags} "${${_snow_flags}}")
         string(REPLACE "\"" "\\\"" ${_snow_flags} "${${_snow_flags}}")

@@ -1,6 +1,7 @@
 #include "snow_shot/presentation/screenshottoolbarmainpanel.h"
 
 #include "screenshottoolpalettebuttons.h"
+#include "screenshottoolbarcompatibility.h"
 #include "snow_shot/presentation/components/icons/iconrenderutils.h"
 #include "snow_shot/presentation/mainwindowskincontroller.h"
 #include "snow_shot/presentation/styles/themecolorscheme.h"
@@ -289,8 +290,22 @@ void ScreenshotToolbarPanel::paintEvent(QPaintEvent* event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(toolbarSurfaceColor());
+    const QColor surface = screenshotToolbarUsesQqAppearance(this) ? qqScreenshotToolbarSurface()
+                                                                   : toolbarSurfaceColor();
+    painter.setBrush(surface);
     painter.drawPath(surfacePath());
+    if (screenshotToolbarUsesQqAppearance(this)) {
+        auto* handle = findChild<QWidget*>(QStringLiteral("screenshotToolbarDragHandle"),
+                                           Qt::FindDirectChildrenOnly);
+        if (handle != nullptr && !handle->isHidden()) {
+            // The reference uses #3c3c3c for the handle strip on its #303030 surface.
+            painter.save();
+            painter.setClipPath(surfacePath());
+            painter.fillRect(QRect(0, 0, handle->geometry().right() + 1, height()),
+                             QColor(0x3c, 0x3c, 0x3c));
+            painter.restore();
+        }
+    }
     if (!m_skinFrame.isNull() && m_skinController) {
         painter.setClipPath(surfacePath());
         painter.setRenderHint(QPainter::SmoothPixmapTransform);
@@ -299,7 +314,7 @@ void ScreenshotToolbarPanel::paintEvent(QPaintEvent* event) {
                             m_skinPlacement.width() * width(), m_skinPlacement.height() * height());
         painter.drawPixmap(target, m_skinFrame, QRectF(m_skinFrame.rect()));
         painter.setOpacity(m_skinMaskOpacity.value_or(1.0));
-        painter.fillPath(surfacePath(), toolbarSurfaceColor());
+        painter.fillPath(surfacePath(), surface);
     }
 }
 
@@ -634,7 +649,9 @@ void ScreenshotToolbarMainPanel::updateSeparatorStyle(QFrame* separator) {
     }
 
     separator->setAttribute(Qt::WA_StyledBackground, true);
-    separator->setStyleSheet(ScreenshotToolbarPanel::separatorStyleSheet());
+    separator->setStyleSheet(screenshotToolbarUsesQqAppearance(this)
+                                 ? QStringLiteral("QFrame { background: #484848; border: 0px; }")
+                                 : ScreenshotToolbarPanel::separatorStyleSheet());
 }
 
 void ScreenshotToolbarMainPanel::updateDragHandle(QWidget* handle) {
@@ -647,7 +664,9 @@ void ScreenshotToolbarMainPanel::updateDragHandle(QWidget* handle) {
         outlined_icons::Holder(),
         QSize(scaledMetric(kDragHandleIconSize, m_physicalScale),
               scaledMetric(kDragHandleIconSize, m_physicalScale)),
-        handle->devicePixelRatioF(), toolbarDragHandleColor());
+        handle->devicePixelRatioF(),
+        screenshotToolbarUsesQqAppearance(this) ? QColor(0x66, 0x66, 0x66)
+                                                : toolbarDragHandleColor());
     if (!icon.isNull()) {
         if (auto* label = qobject_cast<QLabel*>(handle)) {
             label->setPixmap(icon);

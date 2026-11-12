@@ -696,6 +696,44 @@ pub unsafe extern "C" fn snow_viewport_commit_text_draft_payload_ex(
 }
 
 /// # Safety
+/// Handles must be live. `drafts` must contain `count` readable drafts with valid
+/// UTF-8 buffers, and `out_changed_viewports` must be writable.
+/// The first draft identifies the ordinary text target; subsequent drafts edit
+/// that same text, including delete/recreate transitions within the branch.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn snow_viewport_commit_text_history_ex(
+    runtime: SnowRuntime,
+    viewport: SnowViewport,
+    drafts: *const SnowTextCommitDraft,
+    count: u32,
+    out_changed_viewports: *mut SnowChangedViewportList,
+) -> SnowError {
+    ffi_error(|| {
+        if drafts.is_null() || count == 0 || out_changed_viewports.is_null() {
+            return SnowError::InvalidArgument;
+        }
+        let drafts = unsafe { std::slice::from_raw_parts(drafts, count as usize) };
+        let drafts = match drafts
+            .iter()
+            .map(text_draft_commit_from_c)
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(drafts) => drafts,
+            Err(error) => return error,
+        };
+        ffi_status(with_runtime_impl_mut(runtime, |state| {
+            let id = viewport_id(viewport)?;
+            let result = state
+                .runtime
+                .commit_text_history_with_viewport_changes(id, drafts)
+                .map_err(SnowError::from)?;
+            write_changed_viewports(out_changed_viewports, result.changed_viewports);
+            Ok(())
+        }))
+    })
+}
+
+/// # Safety
 /// If `runtime` and `viewport` are non-null, they must be live handles created by this library.
 /// `out_text_id`, `out_has_text_id`, and `out_changed_viewports` must be valid for writes.
 #[unsafe(no_mangle)]
@@ -1264,6 +1302,82 @@ pub unsafe extern "C" fn snow_viewport_commit_distance_value_ex(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn screenshot_history_ffi_preserves_utf8_edits_and_rejects_invalid_batches() {
+        use crate::{snow_changed_viewports_destroy, snow_runtime_undo_ex};
+        let mut state = SnowRuntimeImpl {
+            runtime: snow_draw_engine::Runtime::default(),
+        };
+        let id = state
+            .runtime
+            .create_viewport(snow_draw_engine::ViewportConfig::default())
+            .unwrap();
+        let mut viewport = SnowViewportImpl { id };
+        let mut changed = std::ptr::null_mut();
+        let strings = ["文", "文字"];
+        let drafts: Vec<_> = strings
+            .iter()
+            .map(|text| SnowTextCommitDraft {
+                text_utf8: text.as_ptr().cast(),
+                text_utf8_len: text.len() as u32,
+                measured_layout: SnowTextLayoutSize {
+                    width: 50.0,
+                    height: 24.0,
+                    content_width: 50.0,
+                    content_height: 24.0,
+                },
+                auto_resize: 1,
+                style: snow_draw_engine::EditorStyleDefaults::default().text.into(),
+                ..SnowTextCommitDraft::default()
+            })
+            .collect();
+        unsafe {
+            assert_eq!(
+                snow_viewport_commit_text_history_ex(
+                    &mut state,
+                    &mut viewport,
+                    drafts.as_ptr(),
+                    0,
+                    &mut changed,
+                ),
+                SnowError::InvalidArgument
+            );
+            assert!(!state.runtime.history_state().can_undo);
+            assert_eq!(
+                snow_viewport_commit_text_history_ex(
+                    &mut state,
+                    &mut viewport,
+                    drafts.as_ptr(),
+                    2,
+                    &mut changed,
+                ),
+                SnowError::Ok
+            );
+            snow_changed_viewports_destroy(changed);
+            let text_id = state
+                .runtime
+                .hit_text_at(id, Point::new(0.0, 0.0))
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                state.runtime.text_element_info(text_id).unwrap().text,
+                "文字"
+            );
+            assert_eq!(
+                snow_runtime_undo_ex(&mut state, &mut changed),
+                SnowError::Ok
+            );
+            snow_changed_viewports_destroy(changed);
+            assert_eq!(state.runtime.text_element_info(text_id).unwrap().text, "文");
+            assert_eq!(
+                snow_runtime_undo_ex(&mut state, &mut changed),
+                SnowError::Ok
+            );
+            snow_changed_viewports_destroy(changed);
+            assert!(!state.runtime.history_state().can_undo);
+        }
+    }
 
     fn zero_item() -> SnowSceneDisplayItem {
         unsafe { std::mem::zeroed() }

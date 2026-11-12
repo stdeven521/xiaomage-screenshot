@@ -1,8 +1,6 @@
 if(VCPKG_TARGET_IS_WINDOWS)
     vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
-    # Snow Shot links the static Qt kit and therefore uses the static CRT even
-    # in its debug preset. minizip is linked into that executable directly.
-    set(VCPKG_CRT_LINKAGE static)
+    # Keep the archive static, but inherit the consumer's CRT from the triplet.
 endif()
 
 vcpkg_from_github(
@@ -26,10 +24,6 @@ vcpkg_cmake_configure(
         -DMZ_LIB_SUFFIX=-ng
         -DMZ_ICONV=OFF
         -DMZ_COMPAT=OFF
-    OPTIONS_RELEASE
-        -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
-    OPTIONS_DEBUG
-        -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebug
 )
 vcpkg_cmake_install()
 vcpkg_fixup_pkgconfig()

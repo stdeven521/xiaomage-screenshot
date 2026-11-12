@@ -30,6 +30,17 @@ class ScreenshotControllerTestAccess {
     static ScreenshotIntelligentSelectionModel&
     intelligentSelection(ScreenshotController& controller);
     static ScreenshotOverlayWindow* presentSelection(ScreenshotController& controller);
+    static ScreenshotOverlayWindow* prepareCaptureModes(ScreenshotController& controller,
+                                                        ScreenshotController::CaptureAction action,
+                                                        bool presentationSuppressed = false);
+    static void refreshCaptureModes(ScreenshotController& controller);
+    static ScreenshotController::CaptureAction
+    pendingCaptureAction(const ScreenshotController& controller);
+    static quint64 captureSessionId(const ScreenshotController& controller);
+    static void
+    interceptCaptureModeHandoff(ScreenshotController& controller,
+                                std::function<void(ScreenshotController::CaptureAction)> handler);
+    static bool captureToolbarSuppressed(const ScreenshotController& controller);
     static void confirmCaptureSelection(ScreenshotController& controller,
                                         ScreenshotController::CaptureAction action);
     [[nodiscard]] static bool exportActive(const ScreenshotController& controller);

@@ -2155,6 +2155,8 @@ set(PROJECT_CXX_SOURCES
     src/presentation/overlay/screenshotoverlayinputhandler.cpp
     src/presentation/overlay/screenshotoverlayshortcutcontroller.cpp
     src/presentation/overlay/screenshotoverlaypool.cpp
+    include/snow_shot/presentation/screenshotcapturemodetoolbarwidget.h
+    src/presentation/toolbar/screenshotcapturemodetoolbarwidget.cpp
     src/presentation/overlay/screenshotoverlayuihost.cpp
     src/presentation/overlay/screenshotoverlayframepresenter.cpp
     src/presentation/overlay/screenshotoverlayframepresenter.h
@@ -2232,6 +2234,7 @@ if(SNOW_SHOT_BUILD_TESTS)
     target_compile_definitions(snow_shot PRIVATE SNOW_SHOT_MCP_TEST_FIXTURE=1)
     target_compile_definitions(snow_shot PRIVATE SNOW_SHOT_CONTROLLER_LIFETIME_TESTS=1)
     target_sources(snow_shot PRIVATE tests/screenshot_controller_lifetime_tests.cpp
+        tests/qq_capture_mode_tests.cpp
         tests/screenshot_controller_clipboard_tests.cpp
         tests/mcp_application_lifecycle_tests.cpp
         tests/mcp_source_resolver_tests.cpp)
@@ -7877,6 +7880,8 @@ if(SNOW_SHOT_BUILD_TESTS)
         tests/scrolling_capture_settings_tests.cpp
         ${_scrolling_settings_test_sources}
         src/presentation/overlay/screenshotoverlaycoordinator.cpp
+        include/snow_shot/presentation/screenshotcapturemodetoolbarwidget.h
+        src/presentation/toolbar/screenshotcapturemodetoolbarwidget.cpp
         src/presentation/overlay/screenshotoverlayuihost.cpp
         src/presentation/services/screenshotcolorpickerwindow.cpp
         include/snow_shot/presentation/screenshotselectiontoolbarwidget.h
@@ -7918,6 +7923,8 @@ if(SNOW_SHOT_BUILD_TESTS)
         src/platform/physicalcursor.cpp
         ${_color_picker_lifecycle_sources}
         src/presentation/overlay/screenshotoverlaycoordinator.cpp
+        include/snow_shot/presentation/screenshotcapturemodetoolbarwidget.h
+        src/presentation/toolbar/screenshotcapturemodetoolbarwidget.cpp
         src/presentation/overlay/screenshotoverlayuihost.cpp
         src/presentation/services/screenshotcolorpickerwindow.cpp
         include/snow_shot/presentation/screenshotselectiontoolbarwidget.h
@@ -8008,6 +8015,8 @@ if(SNOW_SHOT_BUILD_TESTS)
         src/presentation/services/screenshotcolorpickercontroller.cpp
         src/platform/physicalcursor.cpp
         src/presentation/overlay/screenshotoverlaycoordinator.cpp
+        include/snow_shot/presentation/screenshotcapturemodetoolbarwidget.h
+        src/presentation/toolbar/screenshotcapturemodetoolbarwidget.cpp
         src/presentation/overlay/screenshotoverlayuihost.cpp
         src/presentation/services/screenshotcolorpickerwindow.cpp
         include/snow_shot/presentation/screenshotselectiontoolbarwidget.h
@@ -14622,3 +14631,5 @@ if(SNOW_SHOT_BUILD_BENCHMARKS)
         target_link_libraries(snow-shot-pinned-window-stacking-performance-benchmark PRIVATE "-framework AppKit")
     endif()
 endif()
+
+include(qq-replica-tests.cmake)

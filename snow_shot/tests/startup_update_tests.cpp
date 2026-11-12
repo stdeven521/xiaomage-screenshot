@@ -262,6 +262,22 @@ int main(int argc, char** argv) {
     require(defaults.root == QFileInfo(defaults.applicationDirectory).dir().absolutePath() &&
                 QFileInfo(defaults.cacheDirectory).fileName().size() == 24,
             "startup and running services share the installation-specific cache factory");
+    require(!defaults.enabled, "personal build production factory disables upstream updates");
+    {
+        UpdateService service(defaults);
+        service.setMode(QStringLiteral("next_launch"));
+        bool preparedHandoff = false;
+        require(snow_shot::update::runStartupUpdate(service,
+                                                    [&] {
+                                                        preparedHandoff = true;
+                                                        return true;
+                                                    }) == StartupUpdateResult::ContinueStartup &&
+                    !preparedHandoff && !service.busy() && !service.handoffPending() &&
+                    service.status().state == snow_shot::update::UpdateState::Unavailable,
+                "old next-launch preference cannot replace or delay the personal build");
+    }
+    if (app.arguments().contains(QStringLiteral("--personal-update-policy-only")))
+        return 0;
 
 #ifdef Q_OS_WIN
     // The copied sidecar needs the same deployed DLLs as this test executable.

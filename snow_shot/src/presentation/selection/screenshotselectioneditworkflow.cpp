@@ -68,6 +68,22 @@ void ScreenshotSelectionEditWorkflow::setSelectionEffectWidthFromToolbar(int eff
     }
 }
 
+void ScreenshotSelectionEditWorkflow::setSelectionShadowWidthFromToolbar(int width) {
+    const bool cancelled = m_context.interaction.cancelEffectDrag();
+    const bool typeChanged =
+        m_context.selection.setBorderType(ScreenshotSelectionBorderType::Shadow);
+    const bool widthChanged = m_context.selection.setEffectWidth(width);
+    if (!typeChanged && !widthChanged && !cancelled) {
+        return;
+    }
+    if (typeChanged || widthChanged) {
+        commitSelectionEffects();
+    }
+    if (m_context.ui.updateOverlayState) {
+        m_context.ui.updateOverlayState();
+    }
+}
+
 void ScreenshotSelectionEditWorkflow::toggleSelectionAspectRatioLockFromToolbar() {
     if (!m_context.selection.resizable() || !m_context.interaction.canResizeSelection())
         return;

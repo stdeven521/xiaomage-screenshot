@@ -3,6 +3,7 @@
 
 #include "snow_shot/presentation/screenshotselectiondisplayunit.h"
 #include "snow_shot/presentation/screenshotshortcuthints.h"
+#include "snow_shot/presentation/screenshotcapturemodetoolbarwidget.h"
 
 #include <QColor>
 #include <QImage>
@@ -14,6 +15,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QRectF>
+#include <functional>
 
 class ScreenshotColorPickerWindow;
 class ScreenshotOverlayWindow;
@@ -61,6 +63,10 @@ class ScreenshotOverlayUiHost final : public QObject {
                              const QRectF& selectionGlobal, const QPoint& cursorPosition);
     void updateShortcutHintPointer(ScreenshotOverlayWindow* overlay, const QPoint& cursorPosition);
     void hideShortcutHints();
+    void setCaptureModeHandler(std::function<void(ScreenshotCaptureToolbarMode)> handler);
+    void updateCaptureModeToolbar(ScreenshotOverlayWindow* overlay,
+                                  ScreenshotCaptureToolbarMode mode, bool enabled);
+    void hideCaptureModeToolbar();
     [[nodiscard]] bool stepToolbarStrokeWidth(int direction);
     [[nodiscard]] bool stepToolbarSelectionOpacity(int direction);
     [[nodiscard]] bool stepToolbarSpotlightOpacity(int direction);
@@ -100,6 +106,9 @@ class ScreenshotOverlayUiHost final : public QObject {
     QPointer<ScreenshotSelectionToolbarWidget> m_selectionToolbar;
     QPointer<ScreenshotColorPickerWindow> m_colorPicker;
     QPointer<QWidget> m_shortcutHints;
+    QPointer<ScreenshotCaptureModeToolbarWidget> m_captureModeToolbar;
+    std::function<void(ScreenshotCaptureToolbarMode)> m_captureModeHandler;
+    bool m_captureModePositioned = false;
     QColor m_colorPickerCenterGuideLineColor = QColor(0, 0, 0, 0);
     bool m_selectionToolbarHidden = false;
 };

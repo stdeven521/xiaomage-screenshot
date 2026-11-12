@@ -3868,19 +3868,6 @@ constexpr CatalogInlineItem catalogItemApiTextTranslation{
 };
 
 #endif
-#if SNOW_SHOT_ENABLE_API_CONFIGURATION
-constexpr CatalogInlineItem catalogItemApiServerUrl{
-    .kind = CatalogItemKind::Text,
-    .id = u"api.server-url",
-    .title = settingsText(QT_TRANSLATE_NOOP("SettingsCatalog", "Server address")),
-    .description = settingsText(QT_TRANSLATE_NOOP("SettingsCatalog",
-                                                  "Enter an HTTP or HTTPS address. Changes apply "
-                                                  "immediately. Clear to use the default server")),
-    .key = u"api_configuration/server_url",
-    .binding = int(SettingsTextBinding ::ServerUrl),
-};
-
-#endif
 constexpr CatalogInlineItem catalogItemNetworkHttpProxy{
     .kind = CatalogItemKind::Text,
     .id = u"network.http-proxy",
@@ -4957,12 +4944,6 @@ constexpr CatalogItemFactory catalogPageConnectionsServicesSectionTextTranslatio
 };
 
 #endif
-#if SNOW_SHOT_ENABLE_API_CONFIGURATION
-constexpr CatalogItemFactory catalogPageConnectionsServicesSectionSnowShotServerItems[] = {
-    {nullptr, &catalogItemApiServerUrl},
-};
-
-#endif
 constexpr CatalogItemFactory catalogPageConnectionsServicesSectionNetworkItems[] = {
     {proxyItem},
     {nullptr, &catalogItemNetworkHttpProxy},
@@ -4996,20 +4977,6 @@ constexpr CatalogSectionRecord catalogPageConnectionsServicesSections[] = {
             "SettingsCatalog", "Custom DeepL, DeepLX, Baidu, and Youdao-compatible services")),
         .reset = SettingsSectionReset ::TextTranslationConfigurations,
         .items = catalogPageConnectionsServicesSectionTextTranslationItems,
-        .factory = nullptr,
-        .layout = SettingsSectionItemLayout::VerticalList,
-        .collapsed = false,
-    },
-#endif
-#if SNOW_SHOT_ENABLE_API_CONFIGURATION
-    {
-        .id = u"snow-shot-server",
-        .title = settingsText(QT_TRANSLATE_NOOP("SettingsCatalog", "Snow Shot server")),
-        .description = settingsText(
-            QT_TRANSLATE_NOOP("SettingsCatalog", "Choose the server for built-in online services. "
-                                                 "Application updates are not affected")),
-        .reset = SettingsSectionReset ::Server,
-        .items = catalogPageConnectionsServicesSectionSnowShotServerItems,
         .factory = nullptr,
         .layout = SettingsSectionItemLayout::VerticalList,
         .collapsed = false,
@@ -5145,17 +5112,6 @@ constexpr CatalogPageRecord catalogPages[] = {
         .kind = SettingsPageKind ::GeneratedSettings,
         .links = {},
         .aliases = catalogPageGeneralAliases,
-    },
-    {
-        .id = u"account",
-        .route = u"/settings/account",
-        .title = settingsText(QT_TRANSLATE_NOOP("SettingsCatalog", "Account")),
-        .description = settingsText(
-            QT_TRANSLATE_NOOP("SettingsCatalog", "Membership, credits and transactions")),
-        .sections = {},
-        .kind = SettingsPageKind::Account,
-        .links = {},
-        .aliases = {},
     },
     {
         .id = u"general-appearance",
@@ -5421,8 +5377,6 @@ QVector<SettingsNavigationNode> builtInNavigation() {
     settingsGroup.pages = {
         {QStringLiteral("nav.general"), QStringLiteral("general"),
          []() { return outlined_icons::Setting(); }},
-        {QStringLiteral("nav.account"), QStringLiteral("account"),
-         []() { return outlined_icons::User(); }},
         {QStringLiteral("nav.general-appearance"), QStringLiteral("general-appearance"),
          []() { return outlined_icons::Control(); }},
         {QStringLiteral("nav.screenshots"), QStringLiteral("screenshots"),

@@ -49,6 +49,9 @@ class SnowCanvasWidget : public QWidget {
     // preserves the library's default Qt key semantics.
     using CommandKeyResolver = std::function<Qt::Key(const QKeyEvent&)>;
     void setCommandKeyResolver(CommandKeyResolver resolver);
+    // Opt-in screenshot behavior: ordinary text ignores Enter/Shift+Enter, retains
+    // draft edit steps in document history, and watermark changes bypass history.
+    void setScreenshotCompatibilityEnabled(bool enabled);
 
     SnowCanvasTool canvasTool() const;
     bool setCanvasTool(SnowCanvasTool tool);

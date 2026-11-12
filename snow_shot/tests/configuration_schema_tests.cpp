@@ -80,7 +80,22 @@ void publicMetadataMatchesOriginal(const QJsonArray& actual) {
     require(fixture.value(QStringLiteral("edition")).toString() ==
                 (snow_shot::app::edition::isMini ? QStringLiteral("mini") : QStringLiteral("full")),
             "the reference must match the linked storage edition");
-    const auto expected = fixture.value(QStringLiteral("entries")).toArray();
+    auto expected = fixture.value(QStringLiteral("entries")).toArray();
+    // Preserve the frozen upstream fixture and name this product's intentional overrides.
+    for (qsizetype i = 0; i < expected.size(); ++i) {
+        auto entry = expected.at(i).toObject();
+        const auto key = entry.value(QStringLiteral("key")).toString();
+        QString shortcut;
+        if (key == QStringLiteral("global_shortcuts/screenshot"))
+            shortcut = QStringLiteral("Ctrl+Alt+A");
+        else if (key == QStringLiteral("pin_to_screen_shortcuts/batch_select_all"))
+            shortcut = QStringLiteral("Ctrl+Alt+Shift+A");
+        if (!shortcut.isEmpty()) {
+            entry.insert(QStringLiteral("defaultValue"),
+                         QJsonArray{QJsonObject{{QStringLiteral("portable"), shortcut}}});
+            expected.replace(i, entry);
+        }
+    }
     if (actual.size() != expected.size()) {
         std::cerr << "schema entries: actual=" << actual.size() << " expected=" << expected.size()
                   << '\n';

@@ -82,10 +82,8 @@ MainWindow::MainWindow(const snow_shot::presentation::settings::SettingsRegistry
     setAttribute(Qt::WA_LayoutOnEntireRect);
 #endif
     setObjectName(QStringLiteral("snowShotMainWindow"));
-    setAccessibleName(snow_shot::app::edition::isMini ? snow_shot::app::edition::productName()
-                                                      : QStringLiteral("SnowShot"));
-    setWindowTitle(snow_shot::app::edition::isMini ? snow_shot::app::edition::productName()
-                                                   : QStringLiteral("SnowShot"));
+    setAccessibleName(snow_shot::app::edition::productName());
+    setWindowTitle(snow_shot::app::edition::productName());
     resize(MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
     setMinimumSize(MAIN_WINDOW_MIN_WIDTH, MAIN_WINDOW_MIN_HEIGHT);
     setMouseTracking(true);

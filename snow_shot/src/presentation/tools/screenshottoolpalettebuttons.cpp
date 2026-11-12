@@ -1,4 +1,5 @@
 #include "screenshottoolpalettebuttons.h"
+#include "screenshottoolbarcompatibility.h"
 
 #include "snow_shot/presentation/components/icons/iconrenderutils.h"
 #include "snow_shot/presentation/components/icons/snowshoticons.h"
@@ -69,6 +70,31 @@ ScreenshotToolPaletteTranslationText::arg(double value, int fieldWidth, char for
 }
 
 namespace {
+class QqToolbarToolButton final : public adqt::widgets::AdButton {
+  public:
+    explicit QqToolbarToolButton(QWidget* parent) : AdButton(parent) {}
+
+  protected:
+    void paintEvent(QPaintEvent* event) override {
+        AdButton::paintEvent(event);
+        if (property("screenshotToolbarPositionItems").toStringList().size() < 2)
+            return;
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        const qreal scale = height() / 32.0;
+        const qreal right = width() - 2.0 * scale;
+        const qreal middle = height() - 7.0 * scale;
+        painter.setPen(
+            QPen(isEnabled() ? qqScreenshotToolbarForeground() : QColor(0x66, 0x66, 0x66), scale,
+                 Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        QPainterPath chevron;
+        chevron.moveTo(right - 5.0 * scale, middle - 1.5 * scale);
+        chevron.lineTo(right - 2.5 * scale, middle + 1.0 * scale);
+        chevron.lineTo(right, middle - 1.5 * scale);
+        painter.drawPath(chevron);
+    }
+};
+
 constexpr const char* kTooltipSourceProperty = "snowShotTranslationTooltipSource";
 constexpr const char* kTooltipArgumentsProperty = "snowShotTranslationTooltipArguments";
 constexpr const char* kAccessibleNameSourceProperty = "snowShotTranslationAccessibleNameSource";
@@ -131,7 +157,14 @@ adqt::icons::IconStatePalette styleRadioIconPalette(const adqt::widgets::AdRadio
         return palette;
     }
 
-    const auto scheme = snow_shot::presentation::styles::generateThemeColorScheme();
+    auto scheme = snow_shot::presentation::styles::generateThemeColorScheme();
+    if (screenshotToolbarUsesQqAppearance(radio)) {
+        scheme.map.colorText = qqScreenshotToolbarForeground();
+        scheme.map.colorTextQuaternary = QColor(0x66, 0x66, 0x66);
+        scheme.map.colorPrimary = qqScreenshotToolbarForeground();
+        scheme.map.colorPrimaryHover = QColor(Qt::white);
+        scheme.map.colorPrimaryActive = QColor(Qt::white);
+    }
     const bool solid = radio->buttonStyle() == adqt::widgets::AdRadio::ButtonStyle::Solid;
     const QColor checkedNormal = solid ? scheme.map.colorWhite : scheme.map.colorPrimary;
     const QColor checkedActive = solid ? scheme.map.colorWhite : scheme.map.colorPrimaryHover;
@@ -222,7 +255,14 @@ class StyleButtonIconBinding final : public QObject {
         if (m_button == nullptr) {
             return;
         }
-        const auto scheme = snow_shot::presentation::styles::generateThemeColorScheme();
+        auto scheme = snow_shot::presentation::styles::generateThemeColorScheme();
+        if (screenshotToolbarUsesQqAppearance(m_button)) {
+            scheme.map.colorText = qqScreenshotToolbarForeground();
+            scheme.map.colorTextQuaternary = QColor(0x66, 0x66, 0x66);
+            scheme.map.colorPrimary = qqScreenshotToolbarForeground();
+            scheme.map.colorPrimaryHover = QColor(Qt::white);
+            scheme.map.colorPrimaryActive = QColor(Qt::white);
+        }
         const bool solid = m_button->buttonStyle() == adqt::widgets::AdButton::ButtonStyle::Solid;
         const bool primary = m_button->accentRole() == adqt::widgets::AdButton::AccentRole::Primary;
         const QColor disabled = scheme.map.colorTextQuaternary;
@@ -624,6 +664,8 @@ void setScreenshotToolPaletteButtonActive(adqt::widgets::AdButton* button, bool 
         return;
     }
     button->setButtonStyle(active ? activeStyle : adqt::widgets::AdButton::ButtonStyle::Text);
+    if (screenshotToolbarUsesQqAppearance(button) && active)
+        button->setButtonStyle(adqt::widgets::AdButton::ButtonStyle::Tonal);
     button->setAccentRole(active ? adqt::widgets::AdButton::AccentRole::Primary
                                  : adqt::widgets::AdButton::AccentRole::Neutral);
 }
@@ -1579,6 +1621,10 @@ createScreenshotToolPaletteOptionPopoverShell(adqt::widgets::AdButton* trigger, 
     popover->setPlacement(adqt::widgets::AdPopover::Placement::Top);
     popover->setPopupLayerMode(adqt::widgets::AdPopover::PopupLayerMode::QtTool);
     popover->setArrowVisible(true);
+    if (screenshotToolbarUsesQqAppearance(trigger)) {
+        popover->setBackgroundColor(qqScreenshotToolbarSurface());
+        popover->setBorderColor(QColor(0x48, 0x48, 0x48));
+    }
     const QPointer<QObject> guardedReceiver(receiver);
     popover->setContentFactory(
         [popover = QPointer<adqt::widgets::AdPopover>(popover), guardedReceiver,
@@ -1614,6 +1660,8 @@ ScreenshotToolPaletteOptionPopoverEditor materializeScreenshotToolPaletteOptionP
     }
 
     auto* content = new QWidget();
+    if (screenshotToolbarUsesQqAppearance(popover->sourceWidget()))
+        content->setProperty("snowShotQqScreenshotAppearance", true);
     content->setObjectName(config.contentObjectName);
     content->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     auto* layout = new QHBoxLayout(content);
@@ -1840,7 +1888,9 @@ adqt::widgets::AdButton*
 createScreenshotToolPaletteToolButton(QWidget* parent, const char* tooltip,
                                       const adqt::icons::IconRef& iconRef,
                                       const ScreenshotToolPaletteButtonMetrics& metrics) {
-    auto* button = new adqt::widgets::AdButton(parent);
+    adqt::widgets::AdButton* button = screenshotToolbarUsesQqAppearance(parent)
+                                          ? new QqToolbarToolButton(parent)
+                                          : new adqt::widgets::AdButton(parent);
     configureScreenshotToolPaletteBaseButton(button, tooltip, metrics);
     new StyleButtonIconBinding(button, iconRef);
     button->setButtonStyle(adqt::widgets::AdButton::ButtonStyle::Text);

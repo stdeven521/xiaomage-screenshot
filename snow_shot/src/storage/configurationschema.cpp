@@ -279,7 +279,9 @@ constexpr SchemaString kActionToolbarItemIdsData[] = {u"barcode-recognition",
                                                       u"upload-to-cloud",
                                                       u"separator",
                                                       u"cancel",
-                                                      u"copy"};
+                                                      u"copy",
+                                                      u"undo",
+                                                      u"redo"};
 const QStringList kActionToolbarItemIds =
     editionActionIds(schemaStrings(kActionToolbarItemIdsData));
 
@@ -508,7 +510,11 @@ constexpr SchemaAllowedValues kSchemaAllowed18 = {nullptr, 0,
                                                   SchemaAllowedProvider::OcrPunctuation};
 constexpr SchemaString kSchemaStrings19[] = {u"blur", u"background_fill"};
 constexpr SchemaAllowedValues kSchemaAllowed19 = {kSchemaStrings19, std::size(kSchemaStrings19)};
+#ifdef Q_OS_WIN
+constexpr SchemaString kSchemaStrings20[] = {u"Ctrl+Alt+A"};
+#else
 constexpr SchemaString kSchemaStrings20[] = {u"F1"};
+#endif
 constexpr SchemaString kSchemaStrings21[] = {u"Ctrl+F1"};
 constexpr SchemaString kSchemaStrings22[] = {u"F3"};
 constexpr SchemaString kSchemaStrings23[] = {u"Ctrl+F3"};
@@ -609,7 +615,12 @@ constexpr SchemaString kSchemaStrings80[] = {u"Ctrl+Y"};
 constexpr SchemaString kSchemaStrings81[] = {u"Ctrl+E"};
 constexpr SchemaString kSchemaStrings82[] = {u"Ctrl+C"};
 constexpr SchemaString kSchemaStrings83[] = {u"Ctrl+Shift+C"};
+#ifdef Q_OS_WIN
+// Keep the global screenshot shortcut available while pinned windows have focus.
+constexpr SchemaString kSchemaStrings84[] = {u"Ctrl+Alt+Shift+A"};
+#else
 constexpr SchemaString kSchemaStrings84[] = {u"Ctrl+Alt+A"};
+#endif
 constexpr SchemaString kSchemaStrings85[] = {u"Ctrl+Alt+J"};
 constexpr SchemaString kSchemaStrings86[] = {u"Ctrl+Alt+C"};
 constexpr SchemaString kSchemaStrings87[] = {u"Ctrl+Alt+S"};

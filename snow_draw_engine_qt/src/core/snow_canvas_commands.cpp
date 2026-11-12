@@ -246,6 +246,24 @@ MutationResult commitText(SnowRuntime runtime, SnowViewport viewport,
     return result;
 }
 
+MutationResult commitTextHistory(SnowRuntime runtime, SnowViewport viewport,
+                                 const std::vector<CommitTextRequest>& requests) {
+    MutationResult result;
+    if (!hasViewport(runtime, viewport) || requests.empty()) {
+        return result;
+    }
+    std::vector<SnowTextCommitDraft> drafts;
+    drafts.reserve(requests.size());
+    for (const auto& request : requests) {
+        drafts.push_back(request.toAbi());
+    }
+    result.success =
+        snow_viewport_commit_text_history_ex(runtime, viewport, drafts.data(),
+                                             static_cast<std::uint32_t>(drafts.size()),
+                                             result.changedViewports.outParam()) == SNOW_OK;
+    return result;
+}
+
 ProcessInputResult processInput(SnowRuntime runtime, SnowViewport viewport,
                                 const SnowInputEvent& event) {
     ProcessInputResult result;
@@ -401,13 +419,15 @@ MutationResult setDistancePixelScale(SnowRuntime runtime, SnowViewport viewport,
 }
 
 MutationResult setWatermarkConfig(SnowRuntime runtime, SnowViewport viewport,
-                                  const SnowWatermarkConfig& config) {
+                                  const SnowWatermarkConfig& config, bool recordHistory) {
     MutationResult result;
     if (!hasViewport(runtime, viewport)) {
         return result;
     }
-    result.success = snow_viewport_set_watermark_config_ex(
-                         runtime, viewport, &config, result.changedViewports.outParam()) == SNOW_OK;
+    const auto apply = recordHistory ? snow_viewport_set_watermark_config_ex
+                                     : snow_viewport_set_watermark_config_without_history_ex;
+    result.success =
+        apply(runtime, viewport, &config, result.changedViewports.outParam()) == SNOW_OK;
     return result;
 }
 

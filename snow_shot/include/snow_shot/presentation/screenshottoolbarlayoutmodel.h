@@ -263,6 +263,10 @@ struct EditorDescriptor {
             {"cancel", "ScreenshotToolbarEditorSettingsWidget",
              QT_TRANSLATE_NOOP("ScreenshotToolbarEditorSettingsWidget", "Cancel screenshot"),
              Icon::Cancel},
+            {"undo", "DrawingToolbarEditorSettingsWidget",
+             QT_TRANSLATE_NOOP("DrawingToolbarEditorSettingsWidget", "Undo"), Icon::Undo},
+            {"redo", "DrawingToolbarEditorSettingsWidget",
+             QT_TRANSLATE_NOOP("DrawingToolbarEditorSettingsWidget", "Redo"), Icon::Redo},
         };
         result.removeIf([](const EditorDescriptor& descriptor) {
             return !app::editionActionToolAvailable(QString::fromLatin1(descriptor.id));
@@ -868,6 +872,59 @@ normalizedLayout(const storage::ScreenshotToolbarLayout& input,
     }
     return normalizedLayout(input, defaultOrder(kind), defaultPositions(kind),
                             kind == storage::ScreenshotToolbarLayoutKind::ActionTools);
+}
+
+// Keep the general-purpose and pinned editors' defaults intact. The screenshot
+// window uses this profile only for an untouched layout; saved custom layouts
+// continue to go through the normal migration path.
+[[nodiscard]] inline storage::ScreenshotToolbarLayout
+qqScreenshotLayout(storage::ScreenshotToolbarLayoutKind kind) {
+    using Kind = storage::ScreenshotToolbarLayoutKind;
+    storage::ScreenshotToolbarLayout result;
+    if (kind == Kind::DrawingTools) {
+        result.positions = {
+            {QStringLiteral("line"), QStringLiteral("shape")},
+            {QStringLiteral("arrow")},
+            {QStringLiteral("free-draw")},
+            {QStringLiteral("serial-number"), QStringLiteral("text")},
+            {QStringLiteral("separator")},
+            {QStringLiteral("watermark"), QStringLiteral("spotlight"), QStringLiteral("filter")},
+        };
+    } else if (kind == Kind::ActionTools) {
+        result.positions = editionActionPositions({
+            {QStringLiteral("pin-to-screen")},
+            {QStringLiteral("scrolling-screenshot")},
+            {QStringLiteral("text-translation")},
+            {QStringLiteral("text-recognition")},
+            {QStringLiteral("separator")},
+            {QStringLiteral("undo")},
+            {QStringLiteral("save-as-file")},
+            {QStringLiteral("cancel")},
+            {QStringLiteral("copy")},
+        });
+    } else {
+        return normalizedLayout({}, kind);
+    }
+    for (const QString& itemId : defaultOrder(kind)) {
+        const bool visible =
+            std::any_of(result.positions.cbegin(), result.positions.cend(),
+                        [&itemId](const auto& position) { return position.contains(itemId); });
+        if (!visible)
+            result.hidden.append(itemId);
+    }
+    return normalizedLayout(result, kind);
+}
+
+[[nodiscard]] inline storage::ScreenshotToolbarLayout
+qqScreenshotLayoutForSettings(const storage::ScreenshotToolbarLayout& input,
+                              storage::ScreenshotToolbarLayoutKind kind) {
+    const auto normalized = normalizedLayout(input, kind);
+    const auto upstreamDefault = normalizedLayout({}, kind);
+    if (normalized.positions == upstreamDefault.positions &&
+        normalized.hidden == upstreamDefault.hidden) {
+        return qqScreenshotLayout(kind);
+    }
+    return normalized;
 }
 
 namespace detail {

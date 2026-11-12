@@ -17,6 +17,9 @@ class SnowCanvasTextDraft final {
     void begin(const QString& text, TextValidator validator = nullptr);
 
     const QString& text() const;
+    // Committed edit states in the current undo branch, excluding the initial text.
+    // IME preedit and abandoned redo states are deliberately omitted.
+    std::vector<QString> committedEditStates() const;
     QString displayText() const;
     QString selectedText() const;
     QString inputMethodCurrentSelection() const;

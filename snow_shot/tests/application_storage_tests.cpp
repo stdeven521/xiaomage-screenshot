@@ -907,7 +907,11 @@ void settingsSchemaDefaultsAndValidationAreComplete() {
                 QJsonArray{shortcutObject(QStringLiteral("Meta+3"), 20)} &&
 #else
             defaultValue("global_shortcuts/screenshot").toArray() ==
+#ifdef Q_OS_WIN
+                structuredShortcuts(QJsonArray{QStringLiteral("Ctrl+Alt+A")}) &&
+#else
                 structuredShortcuts(QJsonArray{QStringLiteral("F1")}) &&
+#endif
             defaultValue("global_shortcuts/screenshot_copy").toArray() ==
                 structuredShortcuts(QJsonArray{QStringLiteral("Ctrl+F1")}) &&
             defaultValue("global_shortcuts/pin_clipboard_content").toArray() ==
@@ -2062,7 +2066,11 @@ void verifyPinToScreenShortcutSettings() {
             !shortcutSettings.setShortcuts(QStringLiteral("unsupported"), {QStringLiteral("Q")}),
         "pinned-window shortcut adapter must expose forty stable actions and defaults");
     require(portable(defaults.value(QStringLiteral("batch_select_all"))) ==
+#ifdef Q_OS_WIN
+                    QStringList{QStringLiteral("Ctrl+Alt+Shift+A")} &&
+#else
                     QStringList{QStringLiteral("Ctrl+Alt+A")} &&
+#endif
                 portable(defaults.value(QStringLiteral("batch_image_stitching"))) ==
                     QStringList{QStringLiteral("Ctrl+Alt+J")} &&
                 portable(defaults.value(QStringLiteral("batch_copy_files_to_clipboard"))) ==
@@ -2309,6 +2317,38 @@ void duplicateShortcutDefaultsSurviveUpgrade() {
         storage::ConfigurationStore reloaded(path, true, true, 60000);
         require(reloaded.value(key) == expected && !reloaded.isDirty(),
                 "contextual shortcut upgrade survives reload without repeated migration");
+    }
+}
+
+void screenshotShortcutDefaultsPreserveConfiguredBindings() {
+    QTemporaryDir temporary;
+    require(temporary.isValid(), "screenshot shortcut defaults need isolated storage");
+    const QString path = temporary.filePath(QStringLiteral("config.json"));
+    const QString captureKey = QStringLiteral("global_shortcuts/screenshot");
+    const QString selectAllKey = QStringLiteral("pin_to_screen_shortcuts/batch_select_all");
+    const QJsonValue captureDefault = storage::ConfigurationSchema::defaultValue(captureKey);
+    const QJsonValue selectAllDefault = storage::ConfigurationSchema::defaultValue(selectAllKey);
+    storage::ConfigurationStore store(path, true, true, 60000);
+    require(store.value(captureKey) == captureDefault &&
+                store.value(selectAllKey) == selectAllDefault,
+            "new configurations must use the current screenshot and pinned defaults");
+#ifdef Q_OS_WIN
+    require(captureDefault == structuredShortcuts({QStringLiteral("Ctrl+Alt+A")}) &&
+                selectAllDefault == structuredShortcuts({QStringLiteral("Ctrl+Alt+Shift+A")}),
+            "QQ screenshot and pinned select-all defaults must not compete for the same keys");
+#endif
+    const QJsonArray previousPinned = structuredShortcuts({QStringLiteral("Ctrl+Alt+A")});
+    for (const auto& configured :
+         {structuredShortcuts({QStringLiteral("F1")}),
+          structuredShortcuts({QStringLiteral("Ctrl+Shift+F9")}), QJsonArray{}}) {
+        require(store.applySnapshot({{captureKey, configured}, {selectAllKey, previousPinned}}) &&
+                    store.value(captureKey) == configured &&
+                    store.value(selectAllKey) == previousPinned && store.flushNow().success,
+                "old, customized and disabled screenshot bindings must never be replaced");
+        storage::ConfigurationStore reloaded(path, true, true, 60000);
+        require(reloaded.value(captureKey) == configured &&
+                    reloaded.value(selectAllKey) == previousPinned && !reloaded.isDirty(),
+                "saved screenshot and pinned shortcuts must survive reload without migration");
     }
 }
 
@@ -4657,6 +4697,7 @@ int main(int argc, char** argv) {
     }
     if (application.arguments().contains(QStringLiteral("--shortcut-settings-only"))) {
         settingsSchemaDefaultsAndValidationAreComplete();
+        screenshotShortcutDefaultsPreserveConfiguredBindings();
         settingsAdaptersRoundTripAndRejectInvalidValues();
         storage::ApplicationStorage::instance().shutdown();
         return 0;
@@ -4713,6 +4754,7 @@ int main(int argc, char** argv) {
     fullscreenWindowFilterPersistsAndDefaultsToGames();
     obsoleteClickThroughShortcutIsIgnored();
     shortcutSchemaMigrationAndPhysicalMetadataRoundTrip();
+    screenshotShortcutDefaultsPreserveConfiguredBindings();
     localShortcutDefaultsPreserveConfiguredBindings();
     applicationEnterBindingsMigrateAndPersist();
     previousSelectionStorageIsRetired();
