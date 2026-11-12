@@ -68,7 +68,7 @@ jobs:
             personal-macos-${{ matrix.arch }}-xcode26-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-
       - name: Install build tools and Qt
         run: |
-          brew install ninja pkgconf nasm autoconf automake libtool
+          brew install ninja pkgconf nasm autoconf automake libtool clang-format
           python3 -m venv .tools/ci-python
           .tools/ci-python/bin/pip install 'cmake==4.2.3' aqtinstall
           echo "$GITHUB_WORKSPACE/.tools/ci-python/bin" >> "$GITHUB_PATH"
