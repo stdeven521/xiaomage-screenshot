@@ -184,7 +184,19 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: personal-cargo-downloads-v1-${{ matrix.arch }}-${{ hashFiles('snow_rust_ffi/Cargo.lock', 'snow-crates/Cargo.lock', 'snow_draw_engine_qt/Cargo.lock', 'snow-image-rs/Cargo.lock', 'snow_shot/rust/snow-shot-mcp/Cargo.lock', 'snow-crates/crates/simd-paddle-ocr-rs/Cargo.lock') }}
+          key: personal-cargo-downloads-v2-${{ matrix.arch }}-${{ hashFiles('snow_rust_ffi/Cargo.lock', 'snow-crates/Cargo.lock', 'snow_draw_engine_qt/Cargo.lock', 'snow-image-rs/Cargo.lock', 'snow_shot/rust/snow-shot-mcp/Cargo.lock', 'snow-crates/crates/simd-paddle-ocr-rs/Cargo.lock') }}
+          restore-keys: personal-cargo-downloads-v1-${{ matrix.arch }}-${{ hashFiles('snow_rust_ffi/Cargo.lock', 'snow-crates/Cargo.lock', 'snow_draw_engine_qt/Cargo.lock', 'snow-image-rs/Cargo.lock', 'snow_shot/rust/snow-shot-mcp/Cargo.lock', 'snow-crates/crates/simd-paddle-ocr-rs/Cargo.lock') }}
+      - name: Prepare offline Rust license dependencies
+        run: |
+          # Packaging uses locked, offline Cargo metadata for these built roots.
+          # Metadata also loads workspace dev dependencies and other platforms,
+          # so building the selected packages alone does not fill this cache.
+          # Fetch every locked target; keep runtime notice filtering in the collector.
+          cargo fetch --locked --manifest-path snow_rust_ffi/Cargo.toml
+          ocr_toolchain="$(sed -n 's/^channel *= *"\([^"]*\)".*/\1/p' snow-crates/crates/simd-paddle-ocr-rs/rust-toolchain.toml)"
+          [[ "$ocr_toolchain" == nightly-* ]]
+          rustup run "$ocr_toolchain" cargo fetch --locked --manifest-path snow-crates/Cargo.toml
+          cargo fetch --locked --manifest-path snow_shot/rust/snow-shot-mcp/Cargo.toml
       - name: Restore Cargo build outputs
         id: cargo-build-cache
         uses: actions/cache/restore@v4
