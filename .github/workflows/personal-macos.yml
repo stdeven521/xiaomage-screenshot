@@ -103,6 +103,7 @@ jobs:
           bash scripts/build.sh snow-shot-macos-${{ matrix.arch }}-performance --parallel 2 \
             --target snow_shot \
             --target snow-shot-application-storage-tests \
+            --target snow-shot-configuration-archive-tests \
             --target snow-shot-application-icon-tests \
             --target snow-shot-about-page-tests \
             --target snow-shot-text-translation-tests \
@@ -118,7 +119,7 @@ jobs:
         run: |
           ctest --test-dir build/snow-shot-macos-${{ matrix.arch }}-performance \
             --output-on-failure --no-tests=error \
-            -R '^snow-shot-(application-storage|application-icon|about-page|text-translation)-tests$'
+            -R '^snow-shot-(application-storage|configuration-archive|application-icon|about-page|text-translation)-tests$'
           build_dir="build/snow-shot-macos-${{ matrix.arch }}-performance"
           "$(find "$build_dir" -type f -name snow-shot-translation-service-tests)" --local-models-only -platform offscreen
           "$(find "$build_dir" -type f -name snow-shot-update-adapter-tests)" --personal-update-policy-only -platform offscreen
