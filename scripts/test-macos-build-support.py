@@ -1807,6 +1807,17 @@ if name == 'openssl':
         self.assertIn('set(_snow_vcpkg_library_dir "@SNOW_FFMPEG_ROOT@/lib")', deployment)
         self.assertEqual(deployment.count('"-libpath=${_snow_vcpkg_library_dir}"'), 1)
 
+    def test_distribution_notices_are_installed_before_bundle_signing(self):
+        macos = (ROOT / 'cmake/SnowShotMacOS.cmake').read_text(encoding='utf-8')
+        package = (ROOT / 'cmake/SnowShotMacOSPackage.cmake').read_text(encoding='utf-8')
+        self.assertIn('if(SNOW_SHOT_RELEASE_STATIC OR SNOW_APPS_PACKAGE_SNOW_SHOT)', macos)
+        signing = macos.index('install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/DeploySnowShotMacOS.cmake"')
+        for category in ('qt', 'vcpkg', 'cargo'):
+            with self.subTest(category=category):
+                destination = 'Contents/Resources/snow-shot/licenses/third-party/' + category
+                self.assertLess(macos.index(destination), signing)
+                self.assertNotIn(destination, package)
+
     def test_macos_icon_uses_native_visual_bounds_and_bundle_metadata(self):
         generator = (ROOT / 'cmake/GenerateMacOSIcon.cmake').read_text()
         bounds = 'x=\\"100\\" y=\\"100\\" width=\\"824\\" height=\\"824\\"'
@@ -2177,6 +2188,7 @@ class MacOSBundle(unittest.TestCase):
             run("cmake", "-S", str(ROOT / "test-support/macos-build"), "-B", str(out),
                 "-G", "Ninja", f"-DSNOW_ROOT={ROOT}", f"-DSNOW_FFMPEG_ROOT={prefix}",
                 f"-DQt6_DIR={qt}", "-DCMAKE_BUILD_TYPE=Release",
+                "-DSNOW_APPS_PACKAGE_SNOW_SHOT=ON",
                 f"-DCMAKE_OSX_ARCHITECTURES={os.uname().machine}")
             run("cmake", "--build", str(out))
             run(str(out / "snow_shot.app/Contents/MacOS/crashpad_handler"), "--version", cwd="/")

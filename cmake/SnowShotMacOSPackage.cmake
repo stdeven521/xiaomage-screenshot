@@ -1,23 +1,6 @@
 if(NOT TARGET snow_shot)
     message(FATAL_ERROR "SNOW_APPS_PACKAGE_SNOW_SHOT requires SNOW_APPS_BUILD_SNOW_SHOT=ON")
 endif()
-if(NOT SNOW_SHOT_RELEASE_STATIC)
-    get_filename_component(_snow_shared_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
-    set(SNOW_SHOT_QT_LICENSE_DIR
-        "${_snow_shared_qt_prefix}/share/snow-apps/qt-licenses" CACHE PATH
-        "Qt license metadata collected by snow_install_qt_license_metadata")
-    if(NOT IS_DIRECTORY "${SNOW_SHOT_QT_LICENSE_DIR}")
-        message(FATAL_ERROR
-            "The Qt license bundle is missing: ${SNOW_SHOT_QT_LICENSE_DIR}. "
-            "Collect the matching Qt source licenses with snow_install_qt_license_metadata before packaging.")
-    endif()
-    install(DIRECTORY "${SNOW_SHOT_QT_LICENSE_DIR}/"
-        DESTINATION "snow_shot.app/Contents/Resources/snow-shot/licenses/third-party/qt"
-        COMPONENT SnowShot)
-    install(DIRECTORY "${SNOW_FFMPEG_ROOT}/share/"
-        DESTINATION "snow_shot.app/Contents/Resources/snow-shot/licenses/third-party/vcpkg"
-        COMPONENT SnowShot FILES_MATCHING PATTERN "copyright")
-endif()
 set(CPACK_PACKAGE_NAME "xiaomage-screenshot")
 set(CPACK_PACKAGE_VENDOR "${SNOW_SHOT_VENDOR}")
 set(CPACK_PACKAGE_VERSION "${SNOW_SHOT_VERSION_NUMERIC}")

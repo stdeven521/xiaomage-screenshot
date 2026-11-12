@@ -87,14 +87,19 @@ if(TARGET snow_shot_image_codec_backend)
 endif()
 target_link_options(snow_shot PRIVATE -Wl,-headerpad_max_install_names)
 
-if(SNOW_SHOT_RELEASE_STATIC)
-    get_filename_component(_snow_static_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
-    set(_snow_static_qt_licenses "${_snow_static_qt_prefix}/share/snow-apps/qt-licenses")
-    if(NOT IS_DIRECTORY "${_snow_static_qt_licenses}")
+if(SNOW_SHOT_RELEASE_STATIC OR SNOW_APPS_PACKAGE_SNOW_SHOT)
+    get_filename_component(_snow_qt_license_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
+    set(SNOW_SHOT_QT_LICENSE_DIR
+        "${_snow_qt_license_prefix}/share/snow-apps/qt-licenses" CACHE PATH
+        "Qt license metadata collected by snow_install_qt_license_metadata")
+    if(NOT IS_DIRECTORY "${SNOW_SHOT_QT_LICENSE_DIR}")
         message(FATAL_ERROR
-            "The audited static Qt license bundle is missing: ${_snow_static_qt_licenses}")
+            "The Qt license bundle is missing: ${SNOW_SHOT_QT_LICENSE_DIR}. "
+            "Collect the matching Qt source licenses with snow_install_qt_license_metadata before packaging.")
     endif()
-    install(DIRECTORY "${_snow_static_qt_licenses}/"
+    # All resource installs must precede DeploySnowShotMacOS below: that script
+    # signs the final bundle, including these Qt and native-library notices.
+    install(DIRECTORY "${SNOW_SHOT_QT_LICENSE_DIR}/"
         DESTINATION "snow_shot.app/Contents/Resources/snow-shot/licenses/third-party/qt"
         COMPONENT SnowShot)
     install(DIRECTORY "${SNOW_FFMPEG_ROOT}/share/"
