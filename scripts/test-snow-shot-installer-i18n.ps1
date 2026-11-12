@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param([ValidateSet('Full', 'Mini')][string]$Edition = 'Full')
-$productName = if ($Edition -eq 'Mini') { 'Snow Shot Mini' } else { 'Snow Shot' }
+$productName = if ($Edition -eq 'Mini') { 'Snow Shot Mini' } else { '小马哥专用截图工具' }
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path

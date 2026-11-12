@@ -37,6 +37,12 @@ function(snow_shot_configure_mini_package)
         execute_process(COMMAND /usr/bin/sips -s format png "${_background}"
             --out "${CPACK_DMG_BACKGROUND_IMAGE}" OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
     else()
+        # The full personal installer overrides these; retain Mini's own metadata.
+        set(CPACK_PACKAGE_VENDOR "${SNOW_SHOT_VENDOR}")
+        set(CPACK_PACKAGE_HOMEPAGE_URL "${SNOW_SHOT_HOMEPAGE_URL}")
+        set(CPACK_NSIS_HELP_LINK "${SNOW_SHOT_HOMEPAGE_URL}")
+        set(CPACK_NSIS_URL_INFO_ABOUT "${SNOW_SHOT_HOMEPAGE_URL}")
+        set(CPACK_NSIS_CONTACT "${SNOW_SHOT_SUPPORT_EMAIL}")
         set(SNOW_SHOT_PRODUCT_NAME "Snow Shot Mini")
         set(SNOW_SHOT_EXECUTABLE_NAME snow_shot_mini)
         if(NOT SNOW_WINDOWS_PLATFORM)

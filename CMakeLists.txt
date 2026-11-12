@@ -464,16 +464,29 @@ if(SNOW_APPS_PACKAGE_SNOW_SHOT AND NOT APPLE AND
     if(NOT TARGET snow_shot)
         message(FATAL_ERROR "SNOW_APPS_PACKAGE_SNOW_SHOT requires SNOW_APPS_BUILD_SNOW_SHOT=ON")
     endif()
+    # Keep executable/update identities stable; personalize only the Windows installer.
+    set(_snow_installer_product_name "${SNOW_SHOT_PRODUCT_NAME}")
+    set(_snow_installer_vendor "${SNOW_SHOT_VENDOR}")
+    set(_snow_installer_homepage "${SNOW_SHOT_HOMEPAGE_URL}")
+    set(_snow_installer_contact "${SNOW_SHOT_SUPPORT_EMAIL}")
+    set(_snow_installer_directory "SnowShot")
+    if(WIN32)
+        set(_snow_installer_product_name "小马哥专用截图工具")
+        set(_snow_installer_vendor "stdeven521")
+        set(_snow_installer_homepage "")
+        set(_snow_installer_contact "")
+        set(_snow_installer_directory "XiaomageScreenshot")
+    endif()
     set(CPACK_PACKAGE_NAME "snow-shot")
     set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};SnowShot;/")
     set(CPACK_COMPONENTS_ALL SnowShot)
-    set(CPACK_PACKAGE_VENDOR "${SNOW_SHOT_VENDOR}")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${SNOW_SHOT_PRODUCT_NAME} screenshot utility")
+    set(CPACK_PACKAGE_VENDOR "${_snow_installer_vendor}")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${_snow_installer_product_name} screenshot utility")
     set(CPACK_PACKAGE_DESCRIPTION "${SNOW_SHOT_DESCRIPTION}")
-    set(CPACK_PACKAGE_HOMEPAGE_URL "${SNOW_SHOT_HOMEPAGE_URL}")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "${_snow_installer_homepage}")
     set(CPACK_PACKAGE_VERSION "${SNOW_SHOT_VERSION}")
-    set(CPACK_PACKAGE_INSTALL_DIRECTORY "SnowShot")
-    set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "SnowShot")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "${_snow_installer_directory}")
+    set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${_snow_installer_directory}")
     set(CPACK_PACKAGE_FILE_NAME "snow-shot-${SNOW_SHOT_VERSION}-${SNOW_WINDOWS_PLATFORM}")
     set(CPACK_PACKAGE_DIRECTORY "${CMAKE_BINARY_DIR}")
     set(CPACK_PACKAGE_CHECKSUM "SHA256")
@@ -483,37 +496,38 @@ if(SNOW_APPS_PACKAGE_SNOW_SHOT AND NOT APPLE AND
     set(CPACK_RESOURCE_FILE_README
         "${CMAKE_CURRENT_SOURCE_DIR}/snow_shot/packaging/README.txt")
     set(CPACK_PACKAGE_EXECUTABLES
-        "${SNOW_SHOT_EXECUTABLE_NAME}" "${SNOW_SHOT_PRODUCT_NAME}")
+        "${SNOW_SHOT_EXECUTABLE_NAME}" "${_snow_installer_product_name}")
     set(CPACK_CREATE_DESKTOP_LINKS "${SNOW_SHOT_EXECUTABLE_NAME}")
     set(CPACK_GENERATOR "NSIS")
-    set(CPACK_NSIS_DISPLAY_NAME "${SNOW_SHOT_PRODUCT_NAME}")
-    set(CPACK_NSIS_PACKAGE_NAME "${SNOW_SHOT_PRODUCT_NAME}")
+    set(CPACK_NSIS_DISPLAY_NAME "${_snow_installer_product_name}")
+    set(CPACK_NSIS_PACKAGE_NAME "${_snow_installer_product_name}")
     set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY "bin")
     set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\${SNOW_SHOT_EXECUTABLE_NAME}.exe")
     set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/snow_shot/resources/app-icon.ico")
     set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/snow_shot/resources/app-icon.ico")
     set(CPACK_NSIS_MUI_FINISHPAGE_RUN "${SNOW_SHOT_EXECUTABLE_NAME}.exe")
-    set(CPACK_NSIS_UNINSTALL_NAME "Uninstall ${SNOW_SHOT_PRODUCT_NAME}")
+    set(CPACK_NSIS_UNINSTALL_NAME "Uninstall ${_snow_installer_product_name}")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
     set(CPACK_NSIS_MODIFY_PATH OFF)
     set(CPACK_NSIS_MANIFEST_DPI_AWARE ON)
     string(CONCAT CPACK_NSIS_DEFINES
         "VIProductVersion \"${SNOW_SHOT_VERSION_NUMERIC}.0\"\n"
-        "VIAddVersionKey /LANG=1033 \"CompanyName\" \"${SNOW_SHOT_VENDOR}\"\n"
-        "VIAddVersionKey /LANG=1033 \"FileDescription\" \"${SNOW_SHOT_PRODUCT_NAME} installer\"\n"
+        "VIAddVersionKey /LANG=1033 \"CompanyName\" \"${_snow_installer_vendor}\"\n"
+        "VIAddVersionKey /LANG=1033 \"FileDescription\" \"${_snow_installer_product_name} installer\"\n"
         "VIAddVersionKey /LANG=1033 \"FileVersion\" \"${SNOW_SHOT_VERSION_NUMERIC}.0\"\n"
         "VIAddVersionKey /LANG=1033 \"InternalName\" \"snow-shot-installer\"\n"
         "VIAddVersionKey /LANG=1033 \"LegalCopyright\" \"${SNOW_SHOT_COPYRIGHT}\"\n"
         "VIAddVersionKey /LANG=1033 \"OriginalFilename\" \"${CPACK_PACKAGE_FILE_NAME}.exe\"\n"
-        "VIAddVersionKey /LANG=1033 \"ProductName\" \"${SNOW_SHOT_PRODUCT_NAME}\"\n"
-        "VIAddVersionKey /LANG=1033 \"ProductVersion\" \"${SNOW_SHOT_VERSION}\""
+        "VIAddVersionKey /LANG=1033 \"ProductName\" \"${_snow_installer_product_name}\"\n"
+        "VIAddVersionKey /LANG=1033 \"ProductVersion\" \"${SNOW_SHOT_VERSION}\"\n"
+        "!define SNOW_SHOT_INSTALLER_PRODUCT_NAME \"${_snow_installer_product_name}\""
     )
-    set(CPACK_NSIS_BRANDING_TEXT "${SNOW_SHOT_PRODUCT_NAME} ${SNOW_SHOT_VERSION}")
+    set(CPACK_NSIS_BRANDING_TEXT "${_snow_installer_product_name} ${SNOW_SHOT_VERSION}")
     set(CPACK_NSIS_BRANDING_TEXT_TRIM_POSITION "CENTER")
-    set(CPACK_NSIS_HELP_LINK "${SNOW_SHOT_HOMEPAGE_URL}")
-    set(CPACK_NSIS_URL_INFO_ABOUT "${SNOW_SHOT_HOMEPAGE_URL}")
-    set(CPACK_NSIS_CONTACT "${SNOW_SHOT_SUPPORT_EMAIL}")
+    set(CPACK_NSIS_HELP_LINK "${_snow_installer_homepage}")
+    set(CPACK_NSIS_URL_INFO_ABOUT "${_snow_installer_homepage}")
+    set(CPACK_NSIS_CONTACT "${_snow_installer_contact}")
     set(CPACK_VERBATIM_VARIABLES ON)
     include(cmake/SnowShotPackageCompression.cmake)
     option(SNOW_SHOT_USE_7Z_PAYLOAD "Use executable-aware 7z installer payload compression." ON)

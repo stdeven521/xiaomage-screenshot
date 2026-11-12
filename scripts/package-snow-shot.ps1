@@ -847,10 +847,17 @@ if (-not $store) {
     $cpackConfiguration = Get-Content -LiteralPath $cpackConfig -Raw
     $requiredCpackSettings = @{
         CPACK_CREATE_DESKTOP_LINKS = "snow_shot"
-        CPACK_PACKAGE_EXECUTABLES = "snow_shot;Snow Shot"
-        CPACK_PACKAGE_HOMEPAGE_URL = "https://snowshot.top"
-        CPACK_PACKAGE_INSTALL_DIRECTORY = "SnowShot"
-        CPACK_PACKAGE_INSTALL_REGISTRY_KEY = "SnowShot"
+        CPACK_PACKAGE_EXECUTABLES = "snow_shot;小马哥专用截图工具"
+        CPACK_PACKAGE_VENDOR = "stdeven521"
+        CPACK_PACKAGE_HOMEPAGE_URL = ""
+        CPACK_PACKAGE_INSTALL_DIRECTORY = "XiaomageScreenshot"
+        CPACK_PACKAGE_INSTALL_REGISTRY_KEY = "XiaomageScreenshot"
+        CPACK_NSIS_DISPLAY_NAME = "小马哥专用截图工具"
+        CPACK_NSIS_PACKAGE_NAME = "小马哥专用截图工具"
+        CPACK_NSIS_UNINSTALL_NAME = "Uninstall 小马哥专用截图工具"
+        CPACK_NSIS_HELP_LINK = ""
+        CPACK_NSIS_URL_INFO_ABOUT = ""
+        CPACK_NSIS_CONTACT = ""
         CPACK_NSIS_INSTALLED_ICON_NAME = "bin\\snow_shot.exe"
     }
     foreach ($setting in $requiredCpackSettings.Keys) {
@@ -1467,13 +1474,13 @@ string(REPLACE "snow-shot-$packageVersion-$ocrPlatform.exe" "$packageBaseName.ex
     }
     $installerVersionInfo = (Get-Item -LiteralPath $packagePath).VersionInfo
     $expectedInstallerMetadata = @{
-        CompanyName = "Snow Apps"
-        FileDescription = "Snow Shot installer"
+        CompanyName = "stdeven521"
+        FileDescription = "小马哥专用截图工具 installer"
         FileVersion = "$packageVersionNumeric.0"
         InternalName = "snow-shot-installer"
         LegalCopyright = "Copyright (C) 2025-2026 mg-chao"
         OriginalFilename = "$packageBaseName.exe"
-        ProductName = "Snow Shot"
+        ProductName = "小马哥专用截图工具"
         ProductVersion = $packageVersion
     }
     foreach ($property in $expectedInstallerMetadata.Keys) {
@@ -1514,6 +1521,13 @@ string(REPLACE "snow-shot-$packageVersion-$ocrPlatform.exe" "$packageBaseName.ex
             Sha256 = $installerHash
         }
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    $installerBytes = (Get-Item -LiteralPath $packagePath).Length
+    Write-Output ([string]::Format([Globalization.CultureInfo]::InvariantCulture,
+        'Personal {0} installer size: {1} bytes / {2:F6} MB / {3:F6} GiB',
+        $variant, $installerBytes, ($installerBytes / 1000000.0), ($installerBytes / 1073741824.0)))
+    if ($installerBytes -le 0 -or $installerBytes -ge 2000000000) {
+        throw 'The personal installer must be nonempty and strictly smaller than 2,000,000,000 bytes.'
+    }
     $producedPackages += $packagePath
     Write-Output "Snow Shot $variant installer: $packagePath"
     Write-Output "Snow Shot $variant installer checksum: $checksumPath"
