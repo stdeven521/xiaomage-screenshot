@@ -13,7 +13,7 @@ on run arguments
             set icon size of theOptions to 96
             set text size of theOptions to 14
             set background picture of theOptions to file ".background:background.png"
-            set position of item "Snow Shot.app" to {210, 224}
+            set position of item "@CPACK_SNOW_SHOT_PRODUCT_NAME@.app" to {210, 224}
             set position of item "Applications" to {570, 224}
             -- Keep CPack's hidden assets outside the visible window even when
             -- the packager's Finder is configured to show hidden files.

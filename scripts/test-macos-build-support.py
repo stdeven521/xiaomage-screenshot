@@ -556,11 +556,13 @@ include([==[{(ROOT / 'cmake/SnowShotMiniMacOS.cmake').as_posix()}]==])
         resources = ROOT / 'snow_shot/packaging/macos'
         plist = plistlib.loads((resources / 'Info.plist.in').read_bytes())
         background = ET.parse(resources / 'dmg-background.svg').getroot()
-        background_source = (resources / 'dmg-background.svg').read_text()
-        package_source = (ROOT / 'cmake/SnowShotMacOSPackage.cmake').read_text()
-        self.assertIn('@SNOW_DMG_WORDMARK@', background_source)
+        background_source = (resources / 'dmg-background.svg').read_text(encoding='utf-8')
+        package_source = (ROOT / 'cmake/SnowShotMacOSPackage.cmake').read_text(encoding='utf-8')
+        self.assertIn('@CPACK_SNOW_SHOT_PRODUCT_NAME@', background_source)
         self.assertNotIn('>Snow Shot</', background_source)
-        self.assertIn('icons/resources/snow-shot-logo.svg', package_source)
+        self.assertIn('set(CPACK_SNOW_SHOT_PRODUCT_NAME "小马哥专用截图工具")', package_source)
+        self.assertIn('@CPACK_SNOW_SHOT_PRODUCT_NAME@.app',
+                      (resources / 'dmg-layout.applescript').read_text(encoding='utf-8'))
         self.assertIn('configure_file(', package_source)
         language_key = '{http://www.w3.org/XML/1998/namespace}lang'
         groups = {element.attrib[language_key]: element
@@ -571,7 +573,8 @@ include([==[{(ROOT / 'cmake/SnowShotMiniMacOS.cmake').as_posix()}]==])
             with self.subTest(language=language):
                 lines = [element.text for element in group]
                 self.assertEqual(len(lines), 2, 'Both install and launch instructions are required')
-                self.assertTrue(all(line and 'Snow Shot' in line for line in lines))
+                self.assertTrue(all(line for line in lines))
+        self.assertIn('Applications', ''.join(groups['en'].itertext()))
         self.assertIn('应用程序', ''.join(groups['zh-Hans'].itertext()))
         self.assertIn('應用程式', ''.join(groups['zh-Hant'].itertext()))
 
@@ -579,14 +582,17 @@ include([==[{(ROOT / 'cmake/SnowShotMiniMacOS.cmake').as_posix()}]==])
         resources = ROOT / 'snow_shot/packaging/macos'
         plist = plistlib.loads((resources / 'Info.plist.in').read_bytes())
         self.assertEqual(plist['CFBundleInfoDictionaryVersion'], '6.0')
-        self.assertEqual(plist['CFBundleName'], 'Snow Shot')
-        self.assertEqual(plist['CFBundleDisplayName'], 'Snow Shot')
+        self.assertEqual(plist['CFBundleName'], '${MACOSX_BUNDLE_BUNDLE_NAME}')
+        self.assertEqual(plist['CFBundleDisplayName'], '${MACOSX_BUNDLE_BUNDLE_NAME}')
         self.assertEqual(plist['CFBundleIdentifier'], 'com.snowshot.snow_shot')
         self.assertEqual(plist['LSApplicationCategoryType'], 'public.app-category.productivity')
         self.assertIs(plist['LSUIElement'], True)
         self.assertEqual(plist['NSHumanReadableCopyright'], '${SNOW_SHOT_COPYRIGHT}')
+        product_names = {'en': "Xiaomage's Screenshot Tool", 'zh-Hans': '小马哥专用截图工具',
+                         'zh-Hant': '小馬哥專用截圖工具'}
         for language in plist['CFBundleLocalizations']:
-            strings = (resources / (language + '.lproj') / 'InfoPlist.strings').read_text()
+            strings = (resources / (language + '.lproj') / 'InfoPlist.strings').read_text(encoding='utf-8')
+            self.assertIn('"CFBundleDisplayName" = "' + product_names[language] + '";', strings)
             for key in ('CFBundleName', 'CFBundleDisplayName', 'NSAppleEventsUsageDescription',
                         'NSCameraUsageDescription', 'NSMicrophoneUsageDescription',
                         'NSAudioCaptureUsageDescription'):
@@ -602,7 +608,7 @@ include([==[{(ROOT / 'cmake/SnowShotMiniMacOS.cmake').as_posix()}]==])
         cmake = ROOT / '.tools/macos-dev/bin/cmake'
         cmake = str(cmake) if cmake.is_file() else shutil.which('cmake')
         self.assertIsNotNone(cmake)
-        for target, product in [('snow_shot', 'Snow Shot'), ('snow_shot_mini', 'Snow Shot Mini')]:
+        for target, product in [('snow_shot', '小马哥专用截图工具'), ('snow_shot_mini', 'Snow Shot Mini')]:
             with self.subTest(product=product), tempfile.TemporaryDirectory(prefix='snow dmg staging ') as directory:
                 stage = Path(directory)
                 bundle = stage / (target + '.app')
@@ -712,7 +718,7 @@ include([==[{(ROOT / 'cmake/SnowShotMiniMacOS.cmake').as_posix()}]==])
     def test_finder_automation_has_usage_description(self):
         plist = plistlib.loads((ROOT / 'snow_shot/packaging/macos/Info.plist.in').read_bytes())
         self.assertEqual(plist['NSAppleEventsUsageDescription'],
-                         'Snow Shot reads selected image files from Finder to pin them to the screen.')
+                         'This app reads selected image files from Finder to pin them to the screen.')
 
     def test_native_languages_match_the_application_catalogs(self):
         plist = plistlib.loads((ROOT / 'snow_shot/packaging/macos/Info.plist.in').read_bytes())
@@ -2207,14 +2213,17 @@ class MacOSBundle(unittest.TestCase):
             run("hdiutil", "attach", "-readonly", "-nobrowse", "-noautoopen",
                 "-mountpoint", str(mount), str(dmg))
             try:
-                packaged = mount / "Snow Shot.app"
+                packaged = mount / "小马哥专用截图工具.app"
                 self.assertTrue(packaged.is_dir())
                 self.assertFalse((mount / "snow_shot.app").exists())
                 self.assertEqual(os.readlink(mount / "Applications"), "/Applications")
                 self.assertTrue((mount / ".background/background.png").is_file())
                 self.assertTrue((mount / ".DS_Store").is_file())
+                license_root = packaged / "Contents/Resources/snow-shot/licenses/third-party"
+                self.assertTrue((license_root / "qt/root/LICENSES").is_dir())
+                self.assertTrue(any((license_root / "vcpkg").rglob("copyright")))
                 metadata = plistlib.loads((packaged / "Contents/Info.plist").read_bytes())
-                self.assertEqual(metadata['CFBundleDisplayName'], 'Snow Shot')
+                self.assertEqual(metadata['CFBundleDisplayName'], '小马哥专用截图工具')
                 self.assertIs(metadata['LSUIElement'], True)
                 self.assertEqual(metadata['NSHumanReadableCopyright'],
                                  'Copyright (C) 2025-2026 mg-chao')

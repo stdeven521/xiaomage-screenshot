@@ -900,7 +900,7 @@ void settingsSchemaDefaultsAndValidationAreComplete() {
             !defaultValue("extended_features/jump_to_translation_page").toBool() &&
 #ifdef Q_OS_MACOS
             defaultValue("global_shortcuts/screenshot").toArray() ==
-                QJsonArray{shortcutObject(QStringLiteral("Meta+1"), 18)} &&
+                QJsonArray{shortcutObject(QStringLiteral("Meta+Alt+A"), 0)} &&
             defaultValue("global_shortcuts/screenshot_copy").toArray() ==
                 QJsonArray{shortcutObject(QStringLiteral("Meta+2"), 19)} &&
             defaultValue("global_shortcuts/pin_clipboard_content").toArray() ==
@@ -2068,6 +2068,8 @@ void verifyPinToScreenShortcutSettings() {
     require(portable(defaults.value(QStringLiteral("batch_select_all"))) ==
 #ifdef Q_OS_WIN
                     QStringList{QStringLiteral("Ctrl+Alt+Shift+A")} &&
+#elif defined(Q_OS_MACOS)
+                    QStringList{QStringLiteral("Meta+Alt+Shift+A")} &&
 #else
                     QStringList{QStringLiteral("Ctrl+Alt+A")} &&
 #endif
@@ -2336,10 +2338,17 @@ void screenshotShortcutDefaultsPreserveConfiguredBindings() {
     require(captureDefault == structuredShortcuts({QStringLiteral("Ctrl+Alt+A")}) &&
                 selectAllDefault == structuredShortcuts({QStringLiteral("Ctrl+Alt+Shift+A")}),
             "QQ screenshot and pinned select-all defaults must not compete for the same keys");
+#elif defined(Q_OS_MACOS)
+    require(captureDefault ==
+                    QJsonArray{shortcutObject(QStringLiteral("Meta+Alt+A"), 0)} &&
+                selectAllDefault == structuredShortcuts({QStringLiteral("Meta+Alt+Shift+A")}),
+            "Mac screenshot must use physical Control+Option+A without competing with "
+            "pinned selection");
 #endif
     const QJsonArray previousPinned = structuredShortcuts({QStringLiteral("Ctrl+Alt+A")});
     for (const auto& configured :
          {structuredShortcuts({QStringLiteral("F1")}),
+          QJsonArray{shortcutObject(QStringLiteral("Meta+1"), 18)},
           structuredShortcuts({QStringLiteral("Ctrl+Shift+F9")}), QJsonArray{}}) {
         require(store.applySnapshot({{captureKey, configured}, {selectAllKey, previousPinned}}) &&
                     store.value(captureKey) == configured &&

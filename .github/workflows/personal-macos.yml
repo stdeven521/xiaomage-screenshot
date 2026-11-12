@@ -1,0 +1,124 @@
+name: Personal macOS packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: macOS ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+      CARGO_BUILD_JOBS: '2'
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      VCPKG_MAX_CONCURRENCY: '2'
+      VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.tools/vcpkg-binaries,readwrite'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Restore Qt kit
+        uses: actions/cache@v4
+        with:
+          path: ~/Qt/6.12.0
+          key: personal-macos-qt-6.12.0-v1
+      - name: Restore native dependencies
+        uses: actions/cache/restore@v4
+        id: native-cache
+        with:
+          path: .tools/vcpkg-binaries
+          key: personal-macos-${{ matrix.arch }}-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}
+      - name: Install build tools and Qt
+        run: |
+          brew install ninja pkgconf nasm autoconf automake libtool
+          python3 -m venv .tools/ci-python
+          .tools/ci-python/bin/pip install 'cmake==4.2.8' aqtinstall
+          echo "$GITHUB_WORKSPACE/.tools/ci-python/bin" >> "$GITHUB_PATH"
+          if [[ ! -f "$HOME/Qt/6.12.0/macos/lib/cmake/Qt6/Qt6Config.cmake" ]]; then
+            .tools/ci-python/bin/python -m aqt install-qt mac desktop 6.12.0 clang_64 \
+              --outputdir "$HOME/Qt" --archives qtbase qtsvg qttools qttranslations
+          fi
+          echo "Qt6_DIR=$HOME/Qt/6.12.0/macos/lib/cmake/Qt6" >> "$GITHUB_ENV"
+          mkdir -p .tools/vcpkg-binaries
+          rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy
+          rustup default 1.97.1
+      - name: Prepare Metal compiler
+        if: matrix.arch == 'arm64'
+        run: |
+          xcodebuild -downloadComponent MetalToolchain
+          xcrun metal --version
+      - name: Collect matching Qt license metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/collect-personal-qt-licenses.py --qt-prefix "$HOME/Qt/6.12.0/macos"
+      - name: Bootstrap full native dependencies
+        run: bash scripts/bootstrap-macos.sh snow-shot-macos-${{ matrix.arch }}-performance
+      - name: Save native dependency cache
+        if: always() && steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .tools/vcpkg-binaries
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
+      - name: Build full personal edition and targeted tests
+        run: |
+          bash scripts/build.sh snow-shot-macos-${{ matrix.arch }}-performance --parallel 2 \
+            --target snow_shot \
+            --target snow-shot-application-storage-tests \
+            --target snow-shot-application-icon-tests \
+            --target snow-shot-about-page-tests \
+            --target snow-shot-text-translation-tests \
+            --target snow-shot-translation-service-tests \
+            --target snow-shot-update-adapter-tests -- \
+            -DSNOW_APPS_BUILD_TESTS=ON \
+            -DSNOW_APPS_BUILD_BENCHMARKS=OFF \
+            -DSNOW_APPS_BUILD_SNOW_SHOT_MINI=OFF \
+            -DSNOW_APPS_PACKAGE_SNOW_SHOT=ON \
+            -DSNOW_RUST_RELEASE_PROFILE=release-fast \
+            -DSNOW_MACOS_CODESIGN_IDENTITY=-
+      - name: Verify personal edition behavior
+        run: |
+          ctest --test-dir build/snow-shot-macos-${{ matrix.arch }}-performance \
+            --output-on-failure --no-tests=error \
+            -R '^snow-shot-(application-storage|application-icon|about-page|text-translation)-tests$'
+          build_dir="build/snow-shot-macos-${{ matrix.arch }}-performance"
+          "$(find "$build_dir" -type f -name snow-shot-translation-service-tests)" --local-models-only -platform offscreen
+          "$(find "$build_dir" -type f -name snow-shot-update-adapter-tests)" --personal-update-policy-only -platform offscreen
+      - name: Package and verify DMG
+        run: bash scripts/package-personal-macos.sh '${{ matrix.arch }}'
+      - name: Upload installable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaomage-macos-${{ matrix.arch }}
+          path: dist/personal-macos/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-diagnostics
+          path: |
+            build/snow-shot-macos-${{ matrix.arch }}-performance/CMakeCache.txt
+            build/snow-shot-macos-${{ matrix.arch }}-performance/CMakeFiles/CMakeConfigureLog.yaml
+            build/snow-shot-macos-${{ matrix.arch }}-performance/Testing/Temporary/LastTest.log
+            build/snow-shot-macos-${{ matrix.arch }}-performance/macos-ocr-verification.json
+          if-no-files-found: ignore

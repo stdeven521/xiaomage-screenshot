@@ -618,6 +618,8 @@ constexpr SchemaString kSchemaStrings83[] = {u"Ctrl+Shift+C"};
 #ifdef Q_OS_WIN
 // Keep the global screenshot shortcut available while pinned windows have focus.
 constexpr SchemaString kSchemaStrings84[] = {u"Ctrl+Alt+Shift+A"};
+#elif defined(Q_OS_MACOS)
+constexpr SchemaString kSchemaStrings84[] = {u"Meta+Alt+Shift+A"};
 #else
 constexpr SchemaString kSchemaStrings84[] = {u"Ctrl+Alt+A"};
 #endif
@@ -1887,7 +1889,7 @@ QVector<ConfigurationSchemaEntry> buildEntries() {
     };
     // Portable Meta maps to the physical Control key on Apple platforms.
     replaceDefault(QStringLiteral("global_shortcuts/screenshot"),
-                   macGlobalShortcutDefault(QStringLiteral("Meta+1"), 18));
+                   macGlobalShortcutDefault(QStringLiteral("Meta+Alt+A"), 0));
     replaceDefault(QStringLiteral("global_shortcuts/screenshot_copy"),
                    macGlobalShortcutDefault(QStringLiteral("Meta+2"), 19));
     replaceDefault(QStringLiteral("global_shortcuts/restore_last_closed_windows"),
