@@ -4,20 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       architecture:
-        description: Mac architecture to build
+        description: Apple Silicon (M1 and later)
         type: choice
         required: false
-        default: both
+        default: arm64
         options:
-          - both
           - arm64
-          - x64
+      runner:
+        description: Apple Silicon build host
+        type: choice
+        required: false
+        default: macos-26
+        options:
+          - macos-26
+          - macos-15
 
 permissions:
   contents: read
 
 concurrency:
-  group: personal-macos-${{ github.ref }}-${{ github.sha }}-${{ inputs.architecture || 'both' }}
+  group: personal-macos-${{ github.ref }}-${{ github.sha }}-arm64-${{ inputs.runner || 'macos-26' }}
   cancel-in-progress: false
 
 jobs:
@@ -25,12 +31,10 @@ jobs:
     name: macOS ${{ matrix.arch }}
     strategy:
       fail-fast: false
-      matrix: >-
-        ${{ fromJSON(
-          inputs.architecture == 'arm64' && '{"include":[{"arch":"arm64","runner":"macos-26"}]}' ||
-          inputs.architecture == 'x64' && '{"include":[{"arch":"x64","runner":"macos-15-intel"}]}' ||
-          '{"include":[{"arch":"arm64","runner":"macos-26"},{"arch":"x64","runner":"macos-15-intel"}]}'
-        ) }}
+      matrix:
+        include:
+          - arch: arm64
+            runner: ${{ inputs.runner || 'macos-26' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     env:
@@ -119,6 +123,8 @@ jobs:
           python3 scripts/test-macos-build-support.py \
             MacOSBuildScripts.test_bootstrap_prepares_ocr_before_installing_dependencies \
             MacOSBuildScripts.test_bootstrap_stops_on_ocr_patch_conflict
+      - name: Verify personal package tooling
+        run: python3 scripts/test-personal-macos-package.py
       - name: Verify isolated native headers
         run: |
           dependency_include="$GITHUB_WORKSPACE/.tools/macos/installed/dynamic/${{ matrix.arch }}-osx-snow-shot/include"
@@ -300,7 +306,8 @@ jobs:
           path: dist/personal-macos/*
           compression-level: 0
           if-no-files-found: error
-          retention-days: 30
+          # Releases hold the permanent download; this is only the transfer artifact.
+          retention-days: 7
       - name: Upload build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -311,6 +318,7 @@ jobs:
             build/snow-shot-macos-${{ matrix.arch }}-performance/CMakeFiles/CMakeConfigureLog.yaml
             build/snow-shot-macos-${{ matrix.arch }}-performance/Testing/Temporary/LastTest.log
             build/snow-shot-macos-${{ matrix.arch }}-performance/macos-ocr-verification.json
+            build/snow-shot-macos-${{ matrix.arch }}-performance/personal-macos-package-size.json
             build/snow-shot-macos-${{ matrix.arch }}-performance/cargo/**/build/*/output
             build/snow-shot-macos-${{ matrix.arch }}-performance/cargo/**/build/*/stderr
             build/snow-shot-macos-${{ matrix.arch }}-performance/cargo/**/.fingerprint/*/output-*
@@ -318,3 +326,4 @@ jobs:
             .tools/personal-metal-check/result.json
           include-hidden-files: true
           if-no-files-found: ignore
+          retention-days: 7

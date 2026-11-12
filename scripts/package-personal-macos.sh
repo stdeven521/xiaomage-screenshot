@@ -3,8 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 arch="${1:?Usage: package-personal-macos.sh arm64|x64}"
+unset SNOW_SHOT_PERSONAL_ARM64_PACKAGE
 case "$arch" in
-    arm64) expected_arch=arm64 ;;
+    arm64) expected_arch=arm64; export SNOW_SHOT_PERSONAL_ARM64_PACKAGE=1 ;;
     x64) expected_arch=x86_64 ;;
     *) echo 'Unsupported architecture' >&2; exit 1 ;;
 esac
@@ -45,8 +46,9 @@ lipo -verify_arch "$expected_arch" "$app/Contents/MacOS/snow_shot"
 mkdir -p dist/personal-macos
 cp "$dmg" dist/personal-macos/
 cp "$build_dir/macos-ocr-verification.json" "dist/personal-macos/ocr-verification-$arch.json"
-python3 - "$arch" "dist/personal-macos/build-info-$arch.json" <<'PY'
+python3 - "$arch" "dist/personal-macos/build-info-$arch.json" "$app" "$dmg" "$build_dir" <<'PY'
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -55,7 +57,7 @@ from pathlib import Path
 def output(*args):
     return subprocess.check_output(args, text=True).strip()
 
-Path(sys.argv[2]).write_text(json.dumps({
+information = {
     "product": "小马哥专用截图工具",
     "architecture": sys.argv[1],
     "commit": output("git", "rev-parse", "HEAD"),
@@ -67,7 +69,20 @@ Path(sys.argv[2]).write_text(json.dumps({
     "edition": "full",
     "startupProbe": "passed",
     "bundleSignature": "verified",
-}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    "dmgBytes": Path(sys.argv[4]).stat().st_size,
+}
+app = Path(sys.argv[3])
+app_bytes = 0
+for root, directories, files in os.walk(app, followlinks=False):
+    root = Path(root)
+    directories[:] = [name for name in directories if not (root / name).is_symlink()]
+    app_bytes += sum((root / name).stat().st_size for name in files
+                     if not (root / name).is_symlink() and (root / name).is_file())
+information['installedAppBytes'] = app_bytes
+if sys.argv[1] == 'arm64':
+    information['packageOptimization'] = json.loads(
+        (Path(sys.argv[5]) / 'personal-macos-package-size.json').read_text())
+Path(sys.argv[2]).write_text(json.dumps(information, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 (
     cd dist/personal-macos

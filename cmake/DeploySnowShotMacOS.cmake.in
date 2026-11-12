@@ -13,6 +13,15 @@ if(_snow_codesign_identity STREQUAL "-")
     message(WARNING "Snow Shot is ad-hoc signed. Rebuilds can invalidate macOS privacy grants even when System Settings shows them enabled. Use SNOW_MACOS_CODESIGN_IDENTITY with a persistent certificate to retain the signing identity.")
 endif()
 string(TOLOWER "${CMAKE_INSTALL_CONFIG_NAME}" _snow_install_config)
+set(_snow_personal_arm64_package OFF)
+if("$ENV{SNOW_SHOT_PERSONAL_ARM64_PACKAGE}" STREQUAL "1")
+    if(NOT "@SNOW_MACOS_OCR_ARCH@" STREQUAL "arm64" OR
+       NOT _snow_install_config STREQUAL "release" OR
+       @SNOW_SHOT_QT_STATIC@ OR @SNOW_MACOS_OCR_RUNTIME_ONLY@)
+        message(FATAL_ERROR "Personal package slimming requires the full shared-Qt ARM64 Release build")
+    endif()
+    set(_snow_personal_arm64_package ON)
+endif()
 set(_snow_ocr_runtime_arguments)
 set(_snow_ocr_model_arguments)
 if(@SNOW_MACOS_OCR_RUNTIME_ONLY@)
@@ -34,13 +43,18 @@ else()
         --app "${_app}" ${_snow_ocr_model_arguments} COMMAND_ERROR_IS_FATAL ANY)
 endif()
 if(NOT @SNOW_SHOT_QT_STATIC@)
+    set(_snow_qt_signing_argument "-codesign=${_snow_codesign_identity}")
+    if(_snow_personal_arm64_package)
+        # Thin/strip deployment copies before signing nested code and OCR hashes.
+        set(_snow_qt_signing_argument -no-codesign)
+    endif()
     execute_process(COMMAND "@SNOW_MACDEPLOYQT@" "${_app}"
         "-executable=${_app}/Contents/MacOS/snow-ocr-process"
         ${_snow_mcp_deploy_arguments}
         "-executable=${_app}/Contents/MacOS/crashpad_handler"
         "-executable=${_app}/Contents/PlugIns/platforms/libqoffscreen.dylib"
         "-libpath=${_snow_vcpkg_library_dir}"
-        -always-overwrite "-codesign=${_snow_codesign_identity}"
+        -always-overwrite "${_snow_qt_signing_argument}"
         RESULT_VARIABLE _result OUTPUT_VARIABLE _output ERROR_VARIABLE _error)
     if(NOT _result EQUAL 0 OR "${_output}${_error}" MATCHES "ERROR:")
         message(FATAL_ERROR "macdeployqt failed (${_result}):\n${_output}\n${_error}")
@@ -83,6 +97,15 @@ elseif(@SNOW_SHOT_QT_STATIC@)
             "${_snow_bundle_file}" COMMAND_ERROR_IS_FATAL ANY)
     endforeach()
 endif()
+if(_snow_personal_arm64_package)
+    get_filename_component(_snow_scripts_directory "@SNOW_MACOS_OCR_TOOL@" DIRECTORY)
+    execute_process(COMMAND "@Python3_EXECUTABLE@"
+        "${_snow_scripts_directory}/slim-personal-macos-bundle.py"
+        --app "${_app}" --staging-root "@CMAKE_BINARY_DIR@/_CPack_Packages"
+        --identity "${_snow_codesign_identity}"
+        --report "@CMAKE_BINARY_DIR@/personal-macos-package-size.json"
+        COMMAND_ERROR_IS_FATAL ANY)
+endif()
 if(@SNOW_MACOS_OCR_ASSETS_ENABLED@)
     # Deployment has finalized and signed the nested Mach-O files. Pin those
     # final bytes, then seal the changed resources without re-signing the worker.
@@ -104,7 +127,7 @@ if(@SNOW_MACOS_OCR_ASSETS_ENABLED@)
         ${_snow_ocr_runtime_arguments}
         COMMAND_ERROR_IS_FATAL ANY)
 else()
-    if(@SNOW_SHOT_QT_STATIC@)
+    if(@SNOW_SHOT_QT_STATIC@ OR _snow_personal_arm64_package)
         execute_process(COMMAND /usr/bin/codesign --force --sign "${_snow_codesign_identity}" "${_app}"
             COMMAND_ERROR_IS_FATAL ANY)
     endif()
