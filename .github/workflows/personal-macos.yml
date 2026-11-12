@@ -225,11 +225,10 @@ jobs:
       - name: Verify Metal build module
         if: matrix.arch == 'arm64'
         run: python3 scripts/check-personal-macos-metal.py
-      - name: Build full personal edition and targeted tests
+      - name: Build personal edition test targets
         id: build-personal
         run: |
           bash scripts/build.sh snow-shot-macos-${{ matrix.arch }}-performance --parallel 2 \
-            --target snow_shot \
             --target snow-shot-application-storage-tests \
             --target snow-shot-configuration-archive-tests \
             --target snow-shot-application-icon-tests \
@@ -244,6 +243,18 @@ jobs:
             -DCMAKE_OSX_SYSROOT=macosx \
             -DSNOW_RUST_RELEASE_PROFILE=release-fast \
             -DSNOW_MACOS_CODESIGN_IDENTITY=-
+      - name: Verify personal edition behavior
+        run: |
+          ctest --test-dir build/snow-shot-macos-${{ matrix.arch }}-performance \
+            --output-on-failure --no-tests=error \
+            -R '^snow-shot-(application-storage|configuration-archive|application-icon|about-page|text-translation)-tests$'
+          build_dir="build/snow-shot-macos-${{ matrix.arch }}-performance"
+          "$(find "$build_dir" -type f -name snow-shot-translation-service-tests)" --local-models-only -platform offscreen
+          "$(find "$build_dir" -type f -name snow-shot-update-adapter-tests)" --personal-update-policy-only -platform offscreen
+      - name: Build full personal edition
+        run: |
+          cmake --build build/snow-shot-macos-${{ matrix.arch }}-performance \
+            --target snow_shot --parallel 2
       - name: Inspect completed Cargo cache content
         id: cargo-cache-state
         if: always() && (steps.build-personal.outcome == 'success' || steps.build-personal.outcome == 'failure')
@@ -299,14 +310,6 @@ jobs:
         with:
           path: build/snow-shot-macos-${{ matrix.arch }}-performance/cargo
           key: ${{ steps.cargo-build-cache.outputs.cache-primary-key }}
-      - name: Verify personal edition behavior
-        run: |
-          ctest --test-dir build/snow-shot-macos-${{ matrix.arch }}-performance \
-            --output-on-failure --no-tests=error \
-            -R '^snow-shot-(application-storage|configuration-archive|application-icon|about-page|text-translation)-tests$'
-          build_dir="build/snow-shot-macos-${{ matrix.arch }}-performance"
-          "$(find "$build_dir" -type f -name snow-shot-translation-service-tests)" --local-models-only -platform offscreen
-          "$(find "$build_dir" -type f -name snow-shot-update-adapter-tests)" --personal-update-policy-only -platform offscreen
       - name: Package and verify DMG
         run: bash scripts/package-personal-macos.sh '${{ matrix.arch }}'
       - name: Upload installable package

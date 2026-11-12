@@ -3834,7 +3834,10 @@ void isolatedInitializationPreservesApplicationAuxiliaryStorage() {
     app.shutdown();
     thumbnail_tests::CacheEnvironment cacheEnvironment;
     require(cacheEnvironment.isValid(), "isolated initialization uses disposable external caches");
-    QTemporaryDir fixture;
+    // Diagnostics reject linked ancestors; macOS exposes its temporary directory through /var.
+    QTemporaryDir fixture(QDir(QDir::tempPath()).canonicalPath() +
+                          QStringLiteral("/storage-auxiliary-XXXXXX"));
+    require(fixture.isValid(), "isolated initialization uses a disposable diagnostic root");
     const QString thumbnail =
         QDir(cacheEnvironment.directory()).filePath(QStringLiteral("old.png"));
     const QString recordingDirectory =
