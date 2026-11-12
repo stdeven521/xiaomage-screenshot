@@ -11,13 +11,41 @@
 - 主界面使用“小马哥专用截图工具”名称，程序、任务栏与托盘统一为天蓝色 M 图标。
 - 移除注册、登录、账户页面及原厂账户服务器入口。
 - 保留 AI 翻译的自定义 API 地址、密钥和模型配置，直接调用用户配置的服务，无需 Snow Shot 账号。
-- 截图默认快捷键为 **Ctrl+Alt+A**，可在设置中更改。已有配置中的自定义快捷键和旧版快捷键会保留。
+- 截图默认快捷键为 Windows **Ctrl+Alt+A**、macOS **Control+Option+A**，均可在设置中更改。已有配置中的自定义快捷键和旧版快捷键会保留。
 - 调整截图工具栏、圆角与阴影、水印、文字编辑和撤销等操作。
 - 关闭上游自动更新，避免上游安装包覆盖个人版修改。
 
+## 下载与安装
+
+| 平台 | 完整安装包 | 下载大小 |
+| --- | --- | --- |
+| Windows x64 | [snow-shot-1.5.4-windows-x64-offline.exe](https://github.com/stdeven521/xiaomage-screenshot/releases/download/personal-v1.5.4-windows.1/snow-shot-1.5.4-windows-x64-offline.exe) | 59262483 字节（56.52 MiB） |
+| Mac：Apple Silicon M1 及之后，macOS 15+ | [xiaomage-screenshot-1.5.4-macos-arm64.dmg](https://github.com/stdeven521/xiaomage-screenshot/releases/download/personal-v1.5.4-macos.1/xiaomage-screenshot-1.5.4-macos-arm64.dmg) | 66214250 字节（63.15 MiB） |
+
+两个安装包均为完整个人版，使用天蓝色 M 图标，无注册登录环节，并保留自定义 API 的 AI 翻译。程序与 OCR 运行组件随包提供；调用 AI 翻译仍需访问自己配置的 API 服务。
+
+发布说明、SHA-256 校验文件和构建验证记录分别见 [Windows 版发布页](https://github.com/stdeven521/xiaomage-screenshot/releases/tag/personal-v1.5.4-windows.1)和 [Mac 版发布页](https://github.com/stdeven521/xiaomage-screenshot/releases/tag/personal-v1.5.4-macos.1)。下载大小是安装包本身的大小，安装后磁盘占用会更大。
+
+### Windows
+
+1. 下载并运行上表的 x64 离线安装器，按向导选择安装位置并完成安装。
+2. 从开始菜单或桌面快捷方式打开“小马哥专用截图工具”。
+3. 使用 **Ctrl+Alt+A** 截图，也可在应用设置中更改快捷键。AI 翻译需在设置中填入自己的 API 地址、密钥和模型。
+
+### Mac
+
+Mac 安装包仅支持 **Apple Silicon M1 及之后的芯片**，要求 **macOS 15 或更新版本**。
+
+1. 打开 ARM64 DMG，将“小马哥专用截图工具”拖入“应用程序”文件夹，再从“应用程序”打开。
+2. 此个人版采用临时签名（ad-hoc），尚未通过 Apple 公证。首次打开若被系统拦截，请在“系统设置 → 隐私与安全性”中找到本应用的提示，点击“仍要打开”并确认。该操作仅允许本应用；具体步骤见 [Apple 官方说明](https://support.apple.com/zh-cn/102445)。
+3. 首次截图或录屏时，按系统提示授予屏幕录制权限；使用麦克风或摄像头时，再授予相应权限。
+4. 使用 **Control+Option+A** 截图，也可在应用设置中更改快捷键。AI 翻译需在设置中填入自己的 API 地址、密钥和模型。
+
+Mac 发布检查覆盖 ARM64 CI 的针对性测试、包内启动与分发探针、OCR 运行组件及签名完整性；这些自动检查不代表已在用户的 Mac 上实测所有截图、录屏和系统权限交互。具体构建提交和检查结果以发布页附带的记录为准。
+
 ## 构建与使用
 
-当前仓库提供源码，尚未提供个人版安装包。此版本已在 Windows x64 本机完成构建和相关功能验证；macOS 尚未构建验证。
+直接使用可下载上方安装包；需要自行修改时，可从本仓库构建。以下是 Windows 开发构建示例，Mac 构建步骤见 [macOS 指南](docs-macos-build.md)。
 
 ```powershell
 git clone --recurse-submodules https://github.com/stdeven521/xiaomage-screenshot.git
@@ -27,7 +55,7 @@ cd xiaomage-screenshot
 ./scripts/run-snow-shot.ps1
 ```
 
-构建需要 Visual Studio 2026 / MSVC、CMake 4.2+、Rust 1.97.1，以及仓库管理的 Qt 和 vcpkg 依赖。具体版本、环境准备和平台注意事项见[开发指南](docs/development.md)、[仓库构建约定](AGENTS.md)、[Windows ARM64 指南](docs-windows-arm64-build.md)与 [macOS 指南](docs-macos-build.md)。开发构建产物不能直接视为可分发安装包。
+Windows 构建需要 Visual Studio 2026 / MSVC、CMake 4.2+、Rust 1.97.1，以及仓库管理的 Qt 和 vcpkg 依赖。具体版本、环境准备和平台注意事项见[开发指南](docs/development.md)、[仓库构建约定](AGENTS.md)、[Windows ARM64 指南](docs-windows-arm64-build.md)与 [macOS 指南](docs-macos-build.md)。开发构建产物不能直接视为可分发安装包。
 
 ## 上游与许可
 
