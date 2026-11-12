@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: macos-15
+            runner: macos-26
           - arch: x64
             runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
@@ -36,6 +36,23 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+      - name: Select Xcode 26 toolchain
+        run: |
+          xcode_path="$(python3 - <<'PY'
+          from pathlib import Path
+          import re
+          candidates = []
+          for app in Path('/Applications').glob('Xcode_26*.app'):
+              match = re.fullmatch(r'Xcode_(26\.\d+(?:\.\d+)?)\.app', app.name)
+              if match:
+                  candidates.append((tuple(map(int, match[1].split('.'))), app))
+          if not candidates:
+              raise SystemExit('An installed stable Xcode 26 toolchain is required')
+          print(max(candidates)[1] / 'Contents/Developer')
+          PY
+          )"
+          sudo xcode-select --switch "$xcode_path"
+          xcodebuild -version
       - name: Restore Qt kit
         uses: actions/cache@v4
         with:
@@ -46,7 +63,9 @@ jobs:
         id: native-cache
         with:
           path: .tools/vcpkg-binaries
-          key: personal-macos-${{ matrix.arch }}-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}
+          key: personal-macos-${{ matrix.arch }}-xcode26-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-${{ github.run_id }}
+          restore-keys: |
+            personal-macos-${{ matrix.arch }}-xcode26-vcpkg-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-
       - name: Install build tools and Qt
         run: |
           brew install ninja pkgconf nasm autoconf automake libtool
