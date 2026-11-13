@@ -108,6 +108,58 @@ void initialChoicesAndMigration() {
                 "legacy choice survives reload");
     }
 }
+void deferredSetupFollowsExplicitSettings() {
+    QTemporaryDir temporary;
+    require(temporary.isValid(), "deferred setup fixture directory");
+    const QString path = temporary.filePath(QStringLiteral("config.json"));
+    {
+        storage::ConfigurationStore config(path, true, true, 60000, nullptr,
+                                           storage::ConfigurationDefaults::Portable);
+        require(!config.value(kAutoStartKey).toBool() &&
+                    config.value(kSetupKey).toString() == QStringLiteral("pending_enabled"),
+                "fresh portable profile still offers checked setup before an explicit choice");
+        QWidget owner;
+        owner.show();
+        bool registered = false;
+        presentation::StartupSetupDialog dialog(
+            config, [&](bool, auto) { registered = true; }, &owner);
+        dialog.open();
+        settle();
+        modal(dialog)->rejectButton()->click();
+        settle();
+        require(!registered && !presentation::startupSetupCompleted(config),
+                "deferring setup leaves native registration untouched");
+        require(config.setValue(kAutoStartKey, false) && config.flushNow().success &&
+                    config.value(kSetupKey).toString() == QStringLiteral("pending_disabled"),
+                "explicit false updates pending selection even when the value did not change");
+    }
+    {
+        storage::ConfigurationStore reopened(path, true, true, 60000);
+        QWidget owner;
+        presentation::StartupSetupDialog dialog(reopened, [](bool, auto) {}, &owner);
+        require(!checkbox(dialog)->isChecked() && !presentation::startupSetupCompleted(reopened),
+                "after restart the deferred prompt respects the explicitly saved opt-out");
+        require(reopened.setValue(kAutoStartKey, true) && reopened.flushNow().success &&
+                    reopened.value(kSetupKey).toString() == QStringLiteral("pending_enabled"),
+                "explicit enabling also updates the deferred selection");
+    }
+    storage::ConfigurationStore reopened(path, true, true, 60000);
+    QWidget owner;
+    presentation::StartupSetupDialog enabled(reopened, [](bool, auto) {}, &owner);
+    require(checkbox(enabled)->isChecked(), "explicit opt-in remains selected after restart");
+    require(reopened.setValues(
+                {{kAutoStartKey, false}, {kSetupKey, QStringLiteral("pending_enabled")}}) &&
+                reopened.value(kSetupKey).toString() == QStringLiteral("pending_enabled"),
+            "a transaction's explicit setup state is authoritative");
+    require(reopened.setValues({{kAutoStartKey, true}, {kSetupKey, QStringLiteral("completed")}}) &&
+                reopened.setValue(kAutoStartKey, false) && reopened.flushNow().success &&
+                presentation::startupSetupCompleted(reopened),
+            "later startup setting changes never reopen completed setup");
+    storage::ConfigurationStore confirmed(path, true, true, 60000);
+    require(presentation::startupSetupCompleted(confirmed) &&
+                !confirmed.value(kAutoStartKey).toBool(),
+            "completed setup and the latest setting both remain durable");
+}
 void cancelAndAsyncRetry() {
     QTemporaryDir temporary;
     storage::ConfigurationStore config(temporary.filePath(QStringLiteral("config.json")), true,
@@ -231,6 +283,7 @@ int main(int argc, char** argv) {
         }
         launchAdmission();
         initialChoicesAndMigration();
+        deferredSetupFollowsExplicitSettings();
         cancelAndAsyncRetry();
         persistenceFailureDoesNotConfirm();
         readOnlyStorageDoesNotRegister();

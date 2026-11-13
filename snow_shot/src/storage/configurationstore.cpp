@@ -493,6 +493,16 @@ bool ConfigurationStore::setValues(const QMap<QString, QJsonValue>& values) {
                            QStringLiteral("Configuration storage is read-only"));
             return false;
         }
+        const QString autoStartKey = QStringLiteral("system/auto_start_at_boot");
+        const QString setupKey = QStringLiteral("system/startup_setup");
+        // A settings-page choice made after deferring setup becomes the next prompt's
+        // selection, even when it matches a portable profile's existing false default.
+        if (normalizedValues.contains(autoStartKey) && !normalizedValues.contains(setupKey) &&
+            m_values.value(setupKey).toString() != QStringLiteral("completed")) {
+            normalizedValues.insert(setupKey, normalizedValues.value(autoStartKey).toBool()
+                                                  ? QStringLiteral("pending_enabled")
+                                                  : QStringLiteral("pending_disabled"));
+        }
         for (auto it = normalizedValues.cbegin(); it != normalizedValues.cend(); ++it) {
             if (m_values.value(it.key()) == it.value()) {
                 continue;
