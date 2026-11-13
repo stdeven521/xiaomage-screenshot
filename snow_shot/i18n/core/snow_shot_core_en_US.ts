@@ -817,6 +817,37 @@ so every moment on screen can be expressed clearly and shared easily</translatio
         </message>
     </context>
     <context>
+        <name>StartupSetup</name>
+        <message>
+            <source>Keep the screenshot shortcut ready after signing in. You can change this later in Settings.</source>
+            <translation>Keep the screenshot shortcut ready after signing in. You can change this later in Settings.</translation>
+        </message>
+        <message>
+            <source>Launch at login</source>
+            <translation>Launch at login</translation>
+        </message>
+        <message>
+            <source>Not now</source>
+            <translation>Not now</translation>
+        </message>
+        <message>
+            <source>Save and continue</source>
+            <translation>Save and continue</translation>
+        </message>
+        <message>
+            <source>Settings could not be saved. Check the storage location and try again.</source>
+            <translation>Settings could not be saved. Check the storage location and try again.</translation>
+        </message>
+        <message>
+            <source>Start with Windows</source>
+            <translation>Start with Windows</translation>
+        </message>
+        <message>
+            <source>Startup preference</source>
+            <translation>Startup preference</translation>
+        </message>
+    </context>
+    <context>
         <name>SystemTrayController</name>
         <message>
             <source>Delete empty groups</source>

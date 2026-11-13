@@ -8,6 +8,7 @@ param(
     [switch]$SkipBuild,
     [ValidateSet('standalone', 'store')][string]$DistributionChannel = 'standalone',
     [switch]$StageOnly,
+    [switch]$SkipAdditionalPackages,
     [switch]$PrepareOcrRuntimeOnly
 )
 
@@ -472,7 +473,7 @@ foreach ($entry in $requiredCacheEntries) {
 }
 
 if (-not $SkipBuild) {
-    [string[]]$releaseTargets = if ($store) { @('snow_shot') } else { @('snow_shot', 'snow_shot_mini') }
+    [string[]]$releaseTargets = if ($store -or $SkipAdditionalPackages) { @('snow_shot') } else { @('snow_shot', 'snow_shot_mini') }
     & cmake --build $buildDirectory --config Release --target @releaseTargets --parallel $Parallelism
     if ($LASTEXITCODE -ne 0) {
         throw "Snow Shot release build failed."
@@ -1440,7 +1441,7 @@ foreach ($variant in @('online', 'offline')) {
 $nsisWorkDirectory = Join-Path $repoRoot "build\nsis-$Architecture"
 New-Item -ItemType Directory -Path $nsisWorkDirectory -Force | Out-Null
 foreach ($variant in @("online", "offline")) {
-    $packageBaseName = "snow-shot-$packageVersion-$ocrPlatform-$variant"
+    $packageBaseName = "XiaoMaGe-Screenshot-$packageVersion-$ocrPlatform-$variant"
     $variantConfig = Join-Path $buildDirectory "CPackConfig-$variant.cmake"
     $baseConfigPath = $cpackConfig.Replace('\', '/')
     $stagePath = $variantStages[$variant].Replace('\', '/')
@@ -1454,7 +1455,7 @@ set(CPACK_INSTALL_CMAKE_PROJECTS "")
 set(CPACK_INSTALLED_DIRECTORIES "$stagePath;/")
 set(CPACK_PACKAGE_DIRECTORY "$packageDirectory")
 set(CPACK_PACKAGE_FILE_NAME "$packageBaseName")
-string(REPLACE "snow-shot-$packageVersion-$ocrPlatform.exe" "$packageBaseName.exe" CPACK_NSIS_DEFINES "`${CPACK_NSIS_DEFINES}")
+string(REPLACE "XiaoMaGe-Screenshot-$packageVersion-$ocrPlatform.exe" "$packageBaseName.exe" CPACK_NSIS_DEFINES "`${CPACK_NSIS_DEFINES}")
 "@ | Set-Content -LiteralPath $variantConfig -Encoding utf8
     Add-Content -LiteralPath $variantConfig -Value $nsisPayload.CPackDefinitions -Encoding utf8
     $packagePath = Join-Path $buildDirectory "$packageBaseName.exe"
@@ -1579,10 +1580,12 @@ Write-Output "OCR runtime upload artifact: $runtimeArchivePath"
 Write-Output "OCR runtime checksum: $runtimeArchiveChecksum"
 Write-Output "OCR runtime manifest: $runtimeReleaseManifest"
 
-. (Join-Path $PSScriptRoot "package-snow-shot-mini.ps1")
+if (-not $SkipAdditionalPackages) {
+    . (Join-Path $PSScriptRoot "package-snow-shot-mini.ps1")
+}
 
 # Store staging returns above; it must never invoke this release step recursively.
-if (-not $store -and -not $StageOnly -and $Architecture -eq 'x64') {
+if (-not $store -and -not $StageOnly -and -not $SkipAdditionalPackages -and $Architecture -eq 'x64') {
     if ($packageVersion -ceq $packageVersionNumeric) {
         & (Join-Path $PSScriptRoot 'package-snow-shot-msix.ps1') -Architecture x64 `
             -OutputDirectory (Join-Path $repoRoot "artifacts/msix/$packageVersion") `

@@ -1,0 +1,15 @@
+小马哥专用截图工具
+许可与开源说明
+
+基于 Snow Shot 开发。
+个人版维护者：stdeven521
+原项目作者：mg-chao
+
+本安装包为小马哥专用截图工具个人版，保留原项目版权和开源许可。
+主程序使用 GNU GPL 第 3 版或更新版本；下方附有未经修改的 GPL 第 3 版正文。
+第三方组件按各自许可证提供，相关声明随应用一同分发。
+
+本项目源码：https://github.com/stdeven521/xiaomage-screenshot
+原项目源码：https://github.com/mg-chao/snow-shot
+
+以下为 GPL 第 3 版原文：

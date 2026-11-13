@@ -15,6 +15,7 @@ on run arguments
             set background picture of theOptions to file ".background:background.png"
             set position of item "@CPACK_SNOW_SHOT_PRODUCT_NAME@.app" to {210, 224}
             set position of item "Applications" to {570, 224}
+            set position of item "许可说明.txt" to {390, 400}
             -- Keep CPack's hidden assets outside the visible window even when
             -- the packager's Finder is configured to show hidden files.
             set position of item ".background" to {900, 100}

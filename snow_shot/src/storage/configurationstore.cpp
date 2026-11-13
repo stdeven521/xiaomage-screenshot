@@ -169,8 +169,17 @@ MaterializedConfiguration materializeConfiguration(const QMap<QString, QJsonValu
     result.document = std::move(document);
     const bool mutateDocument = compatibility != ConfigurationCompatibility::FutureVersion;
     const bool replaceAll = policy == ConfigurationOverlayPolicy::ReplaceAll;
-    const QMap<QString, QJsonValue> currentOverlay =
+    QMap<QString, QJsonValue> currentOverlay =
         mutateDocument ? ConfigurationSchema::migrateLegacyValues(overlay) : overlay;
+    // Only a preference actually present in an older file counts as a previous choice.
+    // Fresh portable stores can default autostart off while the first-run choice starts checked.
+    const QString startupSetupKey = QStringLiteral("system/startup_setup");
+    const auto storedAutoStart = overlay.value(QStringLiteral("system/auto_start_at_boot"));
+    if (mutateDocument && !currentOverlay.contains(startupSetupKey) && storedAutoStart.isBool()) {
+        currentOverlay.insert(startupSetupKey, storedAutoStart.toBool()
+                                                   ? QStringLiteral("pending_enabled")
+                                                   : QStringLiteral("pending_disabled"));
+    }
     if (mutateDocument) {
         QJsonObject interfaceValues = result.document.value(QStringLiteral("interface")).toObject();
         if (interfaceValues.contains(QStringLiteral("app_font_size_percentage"))) {

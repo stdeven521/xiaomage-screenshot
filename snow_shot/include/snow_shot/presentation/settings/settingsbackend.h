@@ -328,6 +328,9 @@ class BuiltInSettingsBackend final : public SettingsBackend {
     QString switchHint(SettingsSwitchBinding binding) const override;
     bool fieldPending(const QString& fieldId) const override;
     [[nodiscard]] bool applySwitchValue(SettingsSwitchBinding binding, bool value) override;
+    // Reports native completion, not just admission of the asynchronous macOS request.
+    void applyStartupSetupChoice(bool enabled,
+                                 std::function<void(bool, const QString&)> completion);
     [[nodiscard]] QVariantList multiSelectValue(SettingsMultiSelectBinding binding) const override;
     [[nodiscard]] bool applyMultiSelectValue(SettingsMultiSelectBinding binding,
                                              const QVariantList& value) override;

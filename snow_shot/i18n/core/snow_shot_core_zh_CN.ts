@@ -817,6 +817,37 @@ so every moment on screen can be expressed clearly and shared easily</source>
         </message>
     </context>
     <context>
+        <name>StartupSetup</name>
+        <message>
+            <source>Keep the screenshot shortcut ready after signing in. You can change this later in Settings.</source>
+            <translation>登录后即可使用截图快捷键。以后可以在设置中更改。</translation>
+        </message>
+        <message>
+            <source>Launch at login</source>
+            <translation>登录时启动</translation>
+        </message>
+        <message>
+            <source>Not now</source>
+            <translation>暂不设置</translation>
+        </message>
+        <message>
+            <source>Save and continue</source>
+            <translation>保存并继续</translation>
+        </message>
+        <message>
+            <source>Settings could not be saved. Check the storage location and try again.</source>
+            <translation>无法保存设置。请检查存储位置后重试。</translation>
+        </message>
+        <message>
+            <source>Start with Windows</source>
+            <translation>随 Windows 启动</translation>
+        </message>
+        <message>
+            <source>Startup preference</source>
+            <translation>启动设置</translation>
+        </message>
+    </context>
+    <context>
         <name>SystemTrayController</name>
         <message>
             <source>Delete empty groups</source>

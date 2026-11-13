@@ -27,6 +27,7 @@
 #include "snow_shot/diagnostics/ffmpegdiagnostics.h"
 #include "diagnosticsbridge.h"
 #include "startupregistrationreport.h"
+#include "snow_shot/presentation/startupsetupdialog.h"
 #include "updateprobe.h"
 #include "snow_shot/storage/settingsadapters.h"
 #include "snow_shot/presentation/capture/screenshotcapturepolicy.h"
@@ -754,6 +755,11 @@ int main(int argc, char* argv[]) {
             snow_shot::app::reportStartupRegistrationFailure(shellRegistrationError);
         }
 #endif
+        // A new installation must wait for the user's first-run choice. Existing native
+        // registrations are left alone until that choice is explicitly saved.
+        if (!snow_shot::presentation::startupSetupCompleted(
+                snow_shot::storage::ApplicationStorage::instance().configuration()))
+            return;
 #ifdef Q_OS_MACOS
         if (snow_shot::platform::macos::loginItemAutomaticRegistrationAllowed(launchArguments)) {
             const auto completed = [controller = QPointer<snow_shot::app::ApplicationController>(

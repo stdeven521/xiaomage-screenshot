@@ -16,6 +16,7 @@
     "ShortcutDisplayService",
     "SidebarWidget",
     "SnowShotApiClient",
+    "StartupSetup",
     "SystemTrayController",
     "TitleBarWidget",
     "snow_shot::app::ApplicationController",

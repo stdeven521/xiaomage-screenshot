@@ -478,6 +478,10 @@ constexpr SchemaString kSchemaStrings8[] = {u"smart_control", u"disabled"};
 constexpr SchemaAllowedValues kSchemaAllowed6 = {kSchemaStrings8, std::size(kSchemaStrings8)};
 constexpr SchemaString kSchemaStrings9[] = {u"images_only", u"image_files", u"disabled"};
 constexpr SchemaAllowedValues kSchemaAllowed7 = {kSchemaStrings9, std::size(kSchemaStrings9)};
+constexpr SchemaString kStartupSetupStates[] = {u"pending_enabled", u"pending_disabled",
+                                                u"completed"};
+constexpr SchemaAllowedValues kStartupSetupAllowed = {kStartupSetupStates,
+                                                      std::size(kStartupSetupStates)};
 constexpr SchemaString kSchemaStrings10[] = {u"manual", u"check"};
 constexpr SchemaAllowedValues kSchemaAllowed8 = {kSchemaStrings10, std::size(kSchemaStrings10)};
 constexpr SchemaString kSchemaStrings11[] = {u"manual", u"check", u"download", u"next_launch"};
@@ -917,6 +921,8 @@ constexpr SchemaEntryDescriptor kEntryDescriptors[] = {
     {u"system/memory_optimization_policy", stringDefault(u"smart_control"),
      ConfigurationValueKind::String, nullptr, &kSchemaAllowed6},
     {u"system/auto_start_at_boot", booleanDefault(true), ConfigurationValueKind::Boolean},
+    {u"system/startup_setup", stringDefault(u"pending_enabled"), ConfigurationValueKind::String,
+     nullptr, &kStartupSetupAllowed},
     {u"system/context_menu_mode", stringDefault(u"image_files"), ConfigurationValueKind::String,
      nullptr, &kSchemaAllowed7},
     {u"system/annotation_mode_when_opening_for_editing", booleanDefault(true),

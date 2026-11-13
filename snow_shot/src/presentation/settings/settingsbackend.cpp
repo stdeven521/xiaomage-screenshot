@@ -450,6 +450,29 @@ BuiltInSettingsBackend::applyStartupSettings(bool enabled, bool elevated, bool r
                : applyNativeStartupSettings(enabled, elevated, m_loginItems, std::move(completion));
 }
 
+void BuiltInSettingsBackend::applyStartupSetupChoice(
+    bool enabled, std::function<void(bool, const QString&)> completion) {
+    const auto finish =
+        [guard = QPointer<BuiltInSettingsBackend>(this),
+         completion = std::move(completion)](const platform::macos::LoginItemResult& result) {
+            if (!guard)
+                return;
+            emit guard->synchronized();
+            completion(result.success, result.error);
+        };
+#ifdef Q_OS_MACOS
+    if (!m_startupSettingsApply) {
+        const auto admitted = m_loginItems->setEnabled(enabled, finish);
+        if (!admitted.success)
+            finish(admitted);
+        return;
+    }
+#endif
+    const auto result =
+        applyStartupSettings(enabled, storage::SystemSettings().launchAsAdministrator(), false);
+    finish({result.success, result.error});
+}
+
 void BuiltInSettingsBackend::connectSkinControllerIfNeeded() {
     auto* controller = MainWindowSkinController::existingInstance();
     const storage::InterfaceSettings interfaceSettings;

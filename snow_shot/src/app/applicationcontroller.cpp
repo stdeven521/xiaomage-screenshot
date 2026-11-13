@@ -34,6 +34,7 @@
 #include "snow_shot/presentation/globalcanvascontroller.h"
 #include "snow_shot/presentation/globalmousemanager.h"
 #include "snow_shot/presentation/mainwindow.h"
+#include "snow_shot/presentation/startupsetupdialog.h"
 #include "snow_shot/presentation/pinnedwindowgroupmanager.h"
 #include "snow_shot/presentation/pinnedwindowstackingcoordinator.h"
 #include "snow_shot/presentation/windowgroupswitchercontroller.h"
@@ -184,7 +185,10 @@ class ApplicationController::Impl {
             &systemTray, &presentation::SystemTrayController::screenshotRequested, &q,
             [this]() { dispatchQuickAction(presentation::GlobalShortcutAction::Screenshot); });
         QObject::connect(&systemTray, &presentation::SystemTrayController::showMainWindowRequested,
-                         &q, [this]() { showMainWindow(); });
+                         &q, [this]() {
+                             showMainWindow();
+                             offerStartupSetup();
+                         });
         QObject::connect(
             &systemTray, &presentation::SystemTrayController::restartRequested, &q, [this]() {
                 const auto result = restartCoordinator.restart(
@@ -1302,6 +1306,8 @@ class ApplicationController::Impl {
             q.handleLaunchRequest(initialArguments, std::move(resume));
         else
             resume();
+        if (presentation::startupSetupLaunchAllowed(initialArguments))
+            QTimer::singleShot(0, &q, [this] { offerStartupSetup(); });
     }
 
     void finishStartup(std::function<void()> maintenance) {
@@ -1957,6 +1963,24 @@ class ApplicationController::Impl {
         return *directCaptureController;
     }
 
+    void offerStartupSetup() {
+        auto& configuration = storage::ApplicationStorage::instance().configuration();
+        if (startupSetupOffered || presentation::startupSetupCompleted(configuration))
+            return;
+        startupSetupOffered = true;
+        showMainWindow();
+        ensureSettingsRuntime();
+        auto* dialog = new presentation::StartupSetupDialog(
+            configuration,
+            [this](bool enabled, presentation::StartupSetupDialog::Completion completed) {
+                settingsBackend->applyStartupSetupChoice(enabled, std::move(completed));
+            },
+            mainWindow);
+        QObject::connect(dialog, &presentation::StartupSetupDialog::finished, dialog,
+                         &QObject::deleteLater);
+        dialog->open();
+    }
+
     void showMainWindow() {
         if (storage::ApplicationStorage::instance().directoryChanging())
             return;
@@ -2030,6 +2054,7 @@ class ApplicationController::Impl {
     // tray and shortcut manager use only their compact bootstrap data.
     std::unique_ptr<presentation::settings::SettingsRegistry> settingsRegistry;
     std::unique_ptr<presentation::settings::BuiltInSettingsBackend> settingsBackend;
+    bool startupSetupOffered = false;
     std::unique_ptr<presentation::settings::SettingsRuntimeSession> runtimeSession;
     SnowShotApiClient* apiClient() const {
 #if SNOW_SHOT_ENABLE_TEXT_TRANSLATION
@@ -2151,6 +2176,8 @@ void ApplicationController::handleLaunchRequest(const QStringList& arguments,
     }
 #endif
     m_impl->showMainWindow();
+    if (presentation::startupSetupLaunchAllowed(arguments))
+        m_impl->offerStartupSetup();
 }
 
 void ApplicationController::restorePinnedWindows() {

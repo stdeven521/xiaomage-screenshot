@@ -1238,6 +1238,8 @@ target_include_directories(snow_shot_cloud_upload PUBLIC "${CMAKE_CURRENT_SOURCE
 target_link_libraries(snow_shot_cloud_upload PUBLIC snow_shot_storage Qt6::Network Qt6::Concurrent)
 
 add_library(snow_shot_settings STATIC ${SNOW_SHOT_SETTINGS_SOURCES}
+    include/snow_shot/presentation/startupsetupdialog.h
+    src/presentation/components/startupsetupdialog.cpp
     include/snow_shot/presentation/permissionguidecontroller.h
     include/snow_shot/presentation/components/permissionguidewidget.h
     src/presentation/services/permissionguidecontroller.cpp
@@ -2624,6 +2626,17 @@ if(SNOW_SHOT_BUILD_TESTS)
         tests/application_storage_tests.cpp
     )
     target_link_libraries(snow-shot-application-storage-tests PRIVATE snow_shot_storage Qt6::Core)
+    add_executable(snow-shot-startup-setup-tests
+        tests/startup_setup_tests.cpp
+        include/snow_shot/presentation/startupsetupdialog.h
+        src/presentation/components/startupsetupdialog.cpp)
+    target_link_libraries(snow-shot-startup-setup-tests PRIVATE
+        snow_shot_storage ant_design_qt Qt6::Widgets)
+    add_test(NAME snow-shot-startup-setup-tests COMMAND snow-shot-startup-setup-tests)
+    set_tests_properties(snow-shot-startup-setup-tests PROPERTIES
+        LABELS "unit" TIMEOUT 60
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
     add_test(NAME snow-shot-storage-checkpoint-tests
         COMMAND snow-shot-application-storage-tests --checkpoint-only)
     set_tests_properties(snow-shot-storage-checkpoint-tests PROPERTIES

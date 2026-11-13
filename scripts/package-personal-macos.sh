@@ -19,7 +19,7 @@ grep -Fqx 'SNOW_APPS_BUILD_SNOW_SHOT_MINI:BOOL=OFF' "$cache"
 grep -Fqx 'SNOW_APPS_PACKAGE_SNOW_SHOT:BOOL=ON' "$cache"
 cmake -P "$build_dir/snow_shot/GenerateSnowShotDiagnosticsSymbols-Release.cmake"
 cpack --config "$build_dir/CPackConfig.cmake" -C Release
-packages=("$build_dir"/xiaomage-screenshot-*-macos-"$expected_arch".dmg)
+packages=("$build_dir"/XiaoMaGe-Screenshot-*-macos-"$expected_arch".dmg)
 [[ ${#packages[@]} == 1 && -f "${packages[0]}" ]] || {
     echo 'Expected exactly one personal DMG.' >&2; exit 1;
 }
@@ -46,6 +46,7 @@ hdiutil verify "$dmg"
 hdiutil attach "$dmg" -readonly -nobrowse -mountpoint "$mount_dir"
 mounted=1
 app="$mount_dir/小马哥专用截图工具.app"
+[[ -s "$mount_dir/许可说明.txt" ]]
 [[ -f "$app/Contents/Info.plist" ]]
 codesign --verify --deep --strict "$app"
 lipo -verify_arch "$expected_arch" "$app/Contents/MacOS/snow_shot"
